@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Attendance - {{ day }}{% endblock %}
+{% block body %}
+<h1>Attendance</h1>
+<p class="sub">Every active, already-joined labour defaults to a full shift.
+   Tap an exception, then Save once - the grid always writes one row per
+   person for the day.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<form class="toolbar" method="get" action="/attendance">
+  <input type="date" name="date" value="{{ day }}" onchange="this.form.submit()">
+  <span style="color:var(--muted);font-size:.85rem">{{ day.strftime('%A') }}</span>
+</form>
+
+<form method="post" action="/attendance">
+  <input type="hidden" name="date" value="{{ day }}">
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Labour</th><th>Wage</th><th>Shift</th></tr></thead>
+    <tbody>
+    {% for row in roster %}
+      <tr>
+        <td class="key rowname">{{ row.labour.name }}
+          <small>{{ 'Rs %d/shift'|format(row.labour.rate|int) if row.labour.wage_type == 'DAILY' else 'Fixed Rs %d/mo'|format(row.labour.rate|int) }}</small>
+        </td>
+        <td>{{ row.labour.wage_type }}</td>
+        <td>
+        {% if not row.joined %}
+          <span class="notjoined" title="Joined {{ row.labour.join_date }}">/ not yet joined</span>
+        {% else %}
+          <div class="shiftgroup">
+          {% for v in shift_values %}
+            <label>
+              <input type="radio" name="shift_{{ row.labour.id }}" value="{{ v }}"
+                     {{ 'checked' if row.shift_units == v }}>
+              <span>{{ v }}</span>
+            </label>
+          {% endfor %}
+          </div>
+        {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <button type="submit">Save attendance</button>
+</form>
+{% endblock %}

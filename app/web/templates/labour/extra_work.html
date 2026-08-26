@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Extra work - {{ day }}{% endblock %}
+{% block body %}
+<h1>Extra work</h1>
+<p class="sub">Qty times the work type's current rate, snapshotted onto the
+   entry so a later rate change never rewrites a settled day.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<form class="toolbar" method="get" action="/extra-work">
+  <input type="date" name="date" value="{{ day }}" onchange="this.form.submit()">
+  <a class="navbtn" href="/extra-work-types">Manage work types &amp; rates</a>
+  <a class="navbtn" href="/extra-work/adjustments">Unexplained-extra report</a>
+</form>
+
+<form class="inline" method="post" action="/extra-work" style="margin-bottom:1.5rem">
+  <input type="hidden" name="date" value="{{ day }}">
+  <div class="field"><label for="labour_id">Labour</label>
+    <select id="labour_id" name="labour_id" required>
+      {% for l in labour %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}
+    </select></div>
+  <div class="field"><label for="work_type_id">Work type</label>
+    <select id="work_type_id" name="work_type_id" required>
+      {% for t in types %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+    </select></div>
+  <div class="field"><label for="qty">Qty</label>
+    <input id="qty" name="qty" type="number" step="0.01" required style="min-width:6rem"></div>
+  <div class="field"><label for="remarks">Remarks</label>
+    <input id="remarks" name="remarks" type="text" style="min-width:12rem"></div>
+  <button type="submit">Add</button>
+</form>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Labour</th><th>Work type</th><th class="num">Qty</th>
+    <th class="num">Rate</th><th class="num">Amount</th><th>Remarks</th><th></th></tr></thead>
+  <tbody>
+  {% for e in entries %}
+    <tr>
+      <td class="key">{{ e.labour_name }}</td>
+      <td>{{ e.work_type_name }}</td>
+      <td class="num">{{ '{:g}'.format(e.qty) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(e.rate) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(e.amount) }}</td>
+      <td>{{ e.remarks or '' }}</td>
+      <td><form method="post" action="/extra-work/{{ e.id }}/delete" style="margin:0">
+          <input type="hidden" name="date" value="{{ day }}">
+          <button type="submit" class="ghost small">Delete</button></form></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" style="color:var(--muted)">No extra work entered for this day.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

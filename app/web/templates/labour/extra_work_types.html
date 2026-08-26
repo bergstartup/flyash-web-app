@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Extra work types{% endblock %}
+{% block body %}
+<h1>Extra work types</h1>
+<p class="sub">Rates are versioned by effective date, never overwritten - a
+   past month's wage never moves when a rate changes.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<h2>Add a work type</h2>
+<form class="inline" method="post" action="/extra-work-types" style="margin-bottom:1.5rem">
+  <div class="field"><label for="code">Code</label>
+    <input id="code" name="code" required style="min-width:8rem"></div>
+  <div class="field"><label for="name">Name</label>
+    <input id="name" name="name" required style="min-width:12rem"></div>
+  <div class="field"><label for="unit">Unit</label>
+    <input id="unit" name="unit" style="min-width:5rem"></div>
+  <div class="field"><label for="rate">Starting rate</label>
+    <input id="rate" name="rate" type="number" step="0.01" required style="min-width:6rem"></div>
+  <button type="submit">Add</button>
+</form>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Code</th><th>Name</th><th>Unit</th>
+    <th class="num">Current rate</th><th>Set new rate</th></tr></thead>
+  <tbody>
+  {% for t in types %}
+    <tr>
+      <td class="key">{{ t.code }}</td>
+      <td>{{ t.name }}{% if t.is_adjustment %}<span class="pill warn" style="margin-left:.4rem">ADJUSTMENT</span>{% endif %}</td>
+      <td>{{ t.unit or '' }}</td>
+      <td class="num">{{ '{:,.2f}'.format(rates[t.id]) if rates[t.id] is not none else '--' }}</td>
+      <td>
+        <form class="inline" method="post" action="/extra-work-types/{{ t.id }}/rate" style="gap:.4rem">
+          <input type="number" name="rate" step="0.01" required style="min-width:5.5rem">
+          <input type="date" name="effective_from" required style="min-width:8.5rem">
+          <button type="submit" class="small">Set</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -38,6 +38,7 @@ def close(db: Session, actor: str, year: int, month: int) -> PeriodLock:
     db.flush()
     record(db, actor, "period_lock", row.id, "CLOSE",
            new={"year": year, "month": month})
+    db.commit()
     return row
 
 
@@ -53,4 +54,5 @@ def reopen(db: Session, actor: str, year: int, month: int, reason: str) -> Perio
     row.reopen_reason = reason.strip()
     db.flush()
     record(db, actor, "period_lock", row.id, "REOPEN", new={"reason": reason})
+    db.commit()
     return row

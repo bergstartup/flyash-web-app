@@ -18,14 +18,17 @@ from sqlalchemy import text
 from app.config import ACTORS
 from app.db.models import ImportAnomaly
 from app.db.session import SessionLocal, engine
+from app.reports.period import latest_period
 from app.reports.reconciliation import measure
 from app.web.actor import current_actor, set_actor
+from app.web.routers.labour import router as labour_router
 
 WEB = Path(__file__).parent / "web"
 
 app = FastAPI(title="SMCP Kallakudi")
 app.mount("/static", StaticFiles(directory=WEB / "static"), name="static")
 templates = Jinja2Templates(directory=str(WEB / "templates"))
+app.include_router(labour_router)
 
 
 def db_session():
@@ -47,24 +50,33 @@ def choose_actor(request: Request, name: str = Form(...)):
 
 
 @app.get("/")
-def dashboard(request: Request, db=Depends(db_session)):
+def dashboard(request: Request, year: int = 0, month: int = 0,
+             db=Depends(db_session)):
+    if not year or not month:
+        year, month = latest_period(db)
+    period = f"{year:04d}-{month:02d}-01"
+    y, m = f"{year:04d}", f"{month:02d}"
     stock = db.execute(text("""
         SELECT p.name, p.ledger_sheet, s.opening, s.production, s.sales, s.closing
         FROM stock_month_summary s JOIN product p ON p.id = s.product_id
-        ORDER BY p.has_stock_ledger DESC, s.sales DESC""")).all()
+        WHERE s.period_start = :period
+        ORDER BY p.has_stock_ledger DESC, s.sales DESC"""), {"period": period}).all()
     salary = db.execute(text("""
         SELECT labour_name, wage_type, duty, salary, advance, extra,
                total_payment, outstanding
-        FROM salary_month WHERE period_year = 2026 AND period_month = 7
-        ORDER BY total_payment DESC""")).all()
+        FROM salary_month WHERE period_year = :y AND period_month = :m
+        ORDER BY total_payment DESC"""), {"y": year, "m": month}).all()
     totals = db.execute(text("""
-        SELECT (SELECT SUM(amount)        FROM sales_register),
-               (SELECT SUM(total_payment) FROM salary_month),
-               (SELECT SUM(amount)        FROM material_receipt),
-               (SELECT closing            FROM digital_ledger_month),
-               (SELECT SUM(outstanding)   FROM receivable_balance),
-               (SELECT COUNT(*)           FROM import_anomaly
-                 WHERE severity = 'ERROR')""")).first()
+        SELECT (SELECT SUM(amount) FROM sales_register
+                 WHERE strftime('%Y', sale_date) = :y AND strftime('%m', sale_date) = :m),
+               (SELECT SUM(total_payment) FROM salary_month
+                 WHERE period_year = :yi AND period_month = :mi),
+               (SELECT SUM(amount) FROM material_receipt
+                 WHERE strftime('%Y', receipt_date) = :y AND strftime('%m', receipt_date) = :m),
+               (SELECT closing FROM digital_ledger_month WHERE period_start = :period),
+               (SELECT SUM(outstanding) FROM receivable_balance),
+               (SELECT COUNT(*) FROM import_anomaly WHERE severity = 'ERROR')
+        """), {"y": y, "m": m, "yi": year, "mi": month, "period": period}).first()
     rupee = lambda v: f"Rs {float(v or 0):,.0f}"
     cards = [
         {"label": "Sales", "value": rupee(totals[0]), "note": "15 products"},
@@ -73,12 +85,12 @@ def dashboard(request: Request, db=Depends(db_session)):
         {"label": "Digital balance", "value": rupee(totals[3]),
          "note": "opening + in - out"},
         {"label": "Receivables", "value": rupee(totals[4]),
-         "note": "to be adjudicated"},
+         "note": "to be adjudicated, running balance"},
         {"label": "Register errors", "value": f"{totals[5]}",
          "note": "found in JULY.xlsx"},
     ]
     return page(request, "dashboard.html", page="dashboard",
-                cards=cards, stock=stock, salary=salary)
+                cards=cards, stock=stock, salary=salary, year=year, month=month)
 
 
 @app.get("/reconciliation")

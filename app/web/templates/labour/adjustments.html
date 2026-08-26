@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Unexplained extra wages{% endblock %}
+{% block body %}
+<h1>Unexplained extra wages</h1>
+<p class="sub">Money booked to the MIGRATION ADJUSTMENT bucket: extra wages
+   paid for a category of work that has no register yet. In July this was
+   Rs 36,442 - 78.6% of all extra wages. This report is how the owner finds
+   the missing categories from real data instead of memory.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Labour</th><th class="num">Entries</th>
+    <th class="num">Unexplained amount</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="key">{{ r.name }}</td>
+      <td class="num">{{ r.entries }}</td>
+      <td class="num bad">{{ '{:,.0f}'.format(r.adjustment_amount) }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="3" style="color:var(--muted)">Nothing unexplained this month.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Advances - {{ day }}{% endblock %}
+{% block body %}
+<h1>Staff advance</h1>
+<p class="sub">A digital advance auto-posts to the digital ledger - the exact
+   triple-keying (Sheet4 / Sheet15 / Sheet19) this replaces.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<form class="toolbar" method="get" action="/advances">
+  <input type="date" name="date" value="{{ day }}" onchange="this.form.submit()">
+</form>
+
+<form class="inline" method="post" action="/advances" style="margin-bottom:1.5rem">
+  <input type="hidden" name="date" value="{{ day }}">
+  <div class="field"><label for="labour_id">Labour</label>
+    <select id="labour_id" name="labour_id" required>
+      {% for l in labour %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}
+    </select></div>
+  <div class="field"><label for="amount">Amount</label>
+    <input id="amount" name="amount" type="number" step="1" required style="min-width:7rem"></div>
+  <div class="field"><label for="payment_mode">Mode</label>
+    <select id="payment_mode" name="payment_mode">
+      <option value="">-</option><option value="CASH">Cash</option>
+      <option value="DIGITAL">Digital</option>
+    </select></div>
+  <div class="field"><label for="paid_to">Paid to (if not the labour)</label>
+    <input id="paid_to" name="paid_to" type="text" style="min-width:12rem"></div>
+  <div class="field"><label for="remarks">Remarks</label>
+    <input id="remarks" name="remarks" type="text" style="min-width:10rem"></div>
+  <button type="submit">Add</button>
+</form>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Labour</th><th class="num">Amount</th><th>Mode</th>
+    <th>Paid to</th><th>Remarks</th><th></th></tr></thead>
+  <tbody>
+  {% for e in entries %}
+    <tr>
+      <td class="key">{{ e.labour_name }}</td>
+      <td class="num">{{ '{:,.0f}'.format(e.amount) }}</td>
+      <td>{{ e.payment_mode or '' }}</td>
+      <td>{{ e.paid_to or '' }}</td>
+      <td>{{ e.remarks or '' }}</td>
+      <td><form method="post" action="/advances/{{ e.id }}/delete" style="margin:0">
+          <input type="hidden" name="date" value="{{ day }}">
+          <button type="submit" class="ghost small">Delete</button></form></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" style="color:var(--muted)">No advances on this day.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

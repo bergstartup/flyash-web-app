@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Labour master{% endblock %}
+{% block body %}
+<h1>Labour master</h1>
+<p class="sub">View / Edit / New. Soft delete only - a deactivated record keeps
+   its history and can be reactivated.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<h2>Add labour</h2>
+<form class="inline" method="post" action="/labour" style="margin-bottom:1.5rem">
+  <div class="field"><label for="name">Name</label>
+    <input id="name" name="name" required></div>
+  <div class="field"><label for="wage_type">Wage type</label>
+    <select id="wage_type" name="wage_type">
+      <option value="DAILY">Daily</option><option value="FIXED">Fixed</option>
+    </select></div>
+  <div class="field"><label for="rate">Rate</label>
+    <input id="rate" name="rate" type="number" step="1" required style="min-width:6rem"></div>
+  <div class="field"><label for="phone">Phone</label>
+    <input id="phone" name="phone"></div>
+  <div class="field"><label for="aadhar_last4">Aadhaar (last 4)</label>
+    <input id="aadhar_last4" name="aadhar_last4" maxlength="4" pattern="[0-9]{4}"></div>
+  <div class="field"><label for="join_date">Join date</label>
+    <input id="join_date" name="join_date" type="date"></div>
+  <button type="submit">Add</button>
+</form>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Name</th><th>Wage</th><th class="num">Rate</th><th>Phone</th>
+    <th>Aadhaar</th><th>Joined</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+  {% for l in labour %}
+    <tr>
+      <td class="key">{{ l.name }}</td>
+      <td>{{ l.wage_type }}</td>
+      <td class="num">{{ '{:,.0f}'.format(l.rate) }}</td>
+      <td>{{ l.phone or '' }}</td>
+      <td>{{ 'xxxx-xx-' + l.aadhar_last4 if l.aadhar_last4 else '' }}</td>
+      <td>{{ l.join_date or '' }}</td>
+      <td>{% if l.is_active %}<span class="pill info">ACTIVE</span>
+          {% else %}<span class="pill warn">INACTIVE</span>{% endif %}</td>
+      <td>
+        {% if l.is_active %}
+        <form method="post" action="/labour/{{ l.id }}/deactivate" style="margin:0">
+          <button type="submit" class="ghost small">Deactivate</button></form>
+        {% else %}
+        <form method="post" action="/labour/{{ l.id }}/reactivate" style="margin:0">
+          <button type="submit" class="small">Reactivate</button></form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

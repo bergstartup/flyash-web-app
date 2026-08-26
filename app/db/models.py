@@ -54,6 +54,10 @@ class Labour(Base):
     join_date: Mapped[dt.date | None] = mapped_column(Date)
     exit_date: Mapped[dt.date | None] = mapped_column(Date)
     is_active: Mapped[int] = mapped_column(Integer, default=1)
+    # Canonical order for the app's own entry screens -- distinct from
+    # labour_sheet_order, which exists only to reproduce each *source* sheet's
+    # own divergent ordering (Sheet2 and Sheet3 disagree) on export.
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
 
     sheet_orders: Mapped[list["LabourSheetOrder"]] = relationship(
         back_populates="labour", cascade="all, delete-orphan"

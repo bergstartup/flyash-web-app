@@ -1,9 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Dashboard - SMCP Kallakudi{% endblock %}
 {% block body %}
-<h1>July 2026</h1>
-<p class="sub">Imported from JULY.xlsx. Every figure below is derived from the
-   entered data - none of it is typed.</p>
+<h1>{{ ['', 'January','February','March','April','May','June','July',
+        'August','September','October','November','December'][month] }} {{ year }}</h1>
+<p class="sub">Every figure below is derived from the entered data - none of
+   it is typed.</p>
 
 <dl class="cards">
   {% for c in cards %}

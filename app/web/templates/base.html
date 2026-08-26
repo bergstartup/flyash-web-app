@@ -65,6 +65,41 @@ td.key{color:var(--ink);font-weight:600;white-space:nowrap}
 .pill.info{color:var(--accent);background:var(--accent-soft)}
 h2{font-size:1.05rem;margin:0 0 .5rem;letter-spacing:-.01em}
 h2 + p{margin:0 0 .75rem;color:var(--muted);font-size:.88rem;max-width:70ch}
+.error{background:var(--brick-soft);color:var(--brick);border:1px solid var(--brick);
+       border-radius:4px;padding:.6rem .9rem;font-size:.88rem;margin-bottom:1.25rem}
+.toolbar{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin-bottom:1.25rem}
+.toolbar input[type=date],.toolbar select{font:inherit;font-size:.88rem;
+       padding:.4rem .55rem;border:1px solid var(--line);border-radius:4px;
+       background:var(--surface);color:var(--ink)}
+.toolbar a.navbtn{font-size:.85rem;color:var(--accent);text-decoration:none;
+       padding:.4rem .6rem;border:1px solid var(--line);border-radius:4px}
+.toolbar a.navbtn:hover{border-color:var(--accent)}
+form.inline{display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:.25rem}
+.field label{font-size:.72rem;color:var(--muted);letter-spacing:.02em}
+.field input,.field select{font:inherit;font-size:.9rem;padding:.4rem .55rem;
+       border:1px solid var(--line);border-radius:4px;background:var(--surface);
+       color:var(--ink);min-width:9rem}
+button,.btn{font:inherit;font-size:.88rem;padding:.45rem .9rem;border-radius:4px;
+       border:1px solid var(--accent);background:var(--accent);color:#fff;
+       cursor:pointer}
+button:hover,.btn:hover{opacity:.9}
+button.ghost{background:transparent;color:var(--brick);border-color:var(--brick)}
+button.small{padding:.2rem .5rem;font-size:.76rem}
+.shiftgroup{display:inline-flex;border:1px solid var(--line);border-radius:4px;
+       overflow:hidden}
+.shiftgroup label{position:relative}
+.shiftgroup input{position:absolute;opacity:0;width:100%;height:100%;margin:0;
+       cursor:pointer}
+.shiftgroup span{display:block;padding:.3rem .55rem;font-size:.8rem;
+       font-family:var(--mono);color:var(--muted);border-right:1px solid var(--line);
+       min-width:2.1rem;text-align:center}
+.shiftgroup label:last-child span{border-right:0}
+.shiftgroup input:checked + span{background:var(--accent);color:#fff}
+.shiftgroup input:focus-visible + span{outline:2px solid var(--accent);outline-offset:-2px}
+.notjoined{color:var(--muted);font-family:var(--mono);font-size:.85rem}
+.rowname{white-space:nowrap}
+.rowname small{display:block;color:var(--muted);font-size:.72rem;font-weight:400}
 </style>
 </head>
 <body>
@@ -74,6 +109,12 @@ h2 + p{margin:0 0 .75rem;color:var(--muted);font-size:.88rem;max-width:70ch}
     <a href="/" class="{{ 'on' if page == 'dashboard' }}">Dashboard</a>
     <a href="/reconciliation" class="{{ 'on' if page == 'reconciliation' }}">Reconciliation</a>
     <a href="/anomalies" class="{{ 'on' if page == 'anomalies' }}">Error register</a>
+    <span style="color:var(--line)">|</span>
+    <a href="/attendance" class="{{ 'on' if page == 'attendance' }}">Attendance</a>
+    <a href="/extra-work" class="{{ 'on' if page == 'extra-work' }}">Extra work</a>
+    <a href="/advances" class="{{ 'on' if page == 'advances' }}">Advances</a>
+    <a href="/salary" class="{{ 'on' if page == 'salary' }}">Salary</a>
+    <a href="/labour" class="{{ 'on' if page == 'labour' }}">Labour</a>
   </nav>
   <form class="actor" method="post" action="/actor">
     <label for="actor">Entering as</label>

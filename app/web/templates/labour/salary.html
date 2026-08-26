@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Salary - {{ year }}-{{ '%02d'|format(month) }}{% endblock %}
+{% block body %}
+<h1>Salary</h1>
+<p class="sub">Duty, salary, advance, balance and extra are all derived from
+   attendance, advances and extra work. Only payment date, authority and
+   status are entered.</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Labour</th><th>Wage</th><th class="num">Duty</th>
+    <th class="num">Salary</th><th class="num">Advance</th>
+    <th class="num">Balance</th><th class="num">Extra</th>
+    <th class="num">Total</th><th>Paid on</th><th>Authority</th>
+    <th>Status</th><th class="num">Pending</th><th></th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="key">{{ r.labour_name }}</td>
+      <td>{{ r.wage_type }}</td>
+      <td class="num">{{ '{:g}'.format(r.duty) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.salary) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.advance) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.balance) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.extra) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.total_payment) }}</td>
+      <td colspan="5">
+        <form class="inline" method="post" action="/salary/{{ r.labour_id }}/settle" style="gap:.4rem">
+          <input type="hidden" name="year" value="{{ year }}">
+          <input type="hidden" name="month" value="{{ month }}">
+          <input type="date" name="paid_on" value="{{ r.paid_on or '' }}" style="min-width:8.5rem">
+          <input type="text" name="authority" value="{{ r.authority or '' }}"
+                 placeholder="signature" style="min-width:7rem">
+          <input type="text" name="status" value="{{ r.status or '' }}"
+                 placeholder="status" style="min-width:5rem">
+          <input type="number" name="outstanding" value="{{ r.outstanding or 0 }}"
+                 step="1" style="min-width:5rem">
+          <button type="submit" class="small">Save</button>
+        </form>
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
