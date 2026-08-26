@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Error register - SMCP Kallakudi{% endblock %}
+{% block body %}
+<h1>Error register</h1>
+<p class="sub">Where the source workbook disagrees with itself. These are not
+   application bugs - they are figures somebody has to adjudicate before the
+   opening balances are set. Every one is the same failure: a number that
+   should have been derived was typed instead.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th>Code</th><th>Where</th><th>Finding</th>
+    <th class="num">Workbook</th><th class="num">Derived</th>
+    <th class="num">Difference</th></tr></thead>
+  <tbody>
+  {% for a in anomalies %}
+    <tr>
+      <td><span class="pill {{ 'err' if a.severity == 'ERROR'
+                 else ('warn' if a.severity == 'WARN' else 'info') }}">
+          {{ a.code }}</span></td>
+      <td class="key">{{ a.sheet }}<br><small>{{ a.cell }}</small></td>
+      <td>{{ a.summary }}</td>
+      <td class="num">{{ a.workbook_value or '--' }}</td>
+      <td class="num">{{ a.derived_value or '--' }}</td>
+      <td class="num">{{ a.difference or '--' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

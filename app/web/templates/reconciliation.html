@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Reconciliation - SMCP Kallakudi{% endblock %}
+{% block body %}
+<h1>Reconciliation</h1>
+<p class="sub">Every July figure the app must reproduce from derived data, read
+   out of JULY.xlsx directly. {{ passed }} of {{ total }} match.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th>Figure</th><th class="num">Expected</th>
+    <th class="num">Derived</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="key">{{ r.label }}</td>
+      <td class="num">{{ '{:,.2f}'.format(r.expected) }}</td>
+      <td class="num">{{ '{:,.2f}'.format(r.actual) }}</td>
+      <td>{% if r.matches %}<span class="pill info">MATCH</span>
+          {% else %}<span class="pill err">OFF BY
+          {{ '{:,.2f}'.format(r.actual - r.expected) }}</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - SMCP Kallakudi{% endblock %}
+{% block body %}
+<h1>July 2026</h1>
+<p class="sub">Imported from JULY.xlsx. Every figure below is derived from the
+   entered data - none of it is typed.</p>
+
+<dl class="cards">
+  {% for c in cards %}
+  <div class="card">
+    <dt>{{ c.label }}</dt>
+    <dd>{{ c.value }}<small>{{ c.note }}</small></dd>
+  </div>
+  {% endfor %}
+</dl>
+
+<h2>Stock</h2>
+<p>Opening, production and sales are entered once; opening, total and balance
+   are computed by the ledger view.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th>Product</th><th>Ledger</th><th class="num">Opening</th>
+    <th class="num">Production</th><th class="num">Sales</th>
+    <th class="num">Closing</th></tr></thead>
+  <tbody>
+  {% for s in stock %}
+    <tr>
+      <td class="key">{{ s.name }}</td>
+      <td>{{ s.ledger_sheet or '--' }}</td>
+      <td class="num">{{ '{:,.0f}'.format(s.opening) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(s.production) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(s.sales) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(s.closing) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Salary</h2>
+<p>Duty comes from the attendance grid, extra from the extra-work register.
+   Only the paid-on date and status are entered.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th>Labour</th><th>Wage</th><th class="num">Duty</th>
+    <th class="num">Salary</th><th class="num">Advance</th>
+    <th class="num">Extra</th><th class="num">Total</th>
+    <th class="num">Pending</th></tr></thead>
+  <tbody>
+  {% for r in salary %}
+    <tr>
+      <td class="key">{{ r.labour_name }}</td>
+      <td>{{ r.wage_type }}</td>
+      <td class="num">{{ '{:g}'.format(r.duty) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.salary) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.advance) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.extra) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r.total_payment) }}</td>
+      <td class="num {{ 'bad' if r.outstanding }}">
+        {{ '{:,.0f}'.format(r.outstanding) if r.outstanding else '--' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

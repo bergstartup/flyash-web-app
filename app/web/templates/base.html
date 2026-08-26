@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}SMCP Kallakudi{% endblock %}</title>
+<script src="/static/htmx.min.js" defer></script>
+<style>
+:root{
+  --ground:#EDEFEE; --surface:#fff; --ink:#171C1A; --ink-2:#3B4441;
+  --muted:#5C6663; --line:#D4D9D7; --accent:#0E6B50; --accent-soft:#DBEDE5;
+  --brick:#A33420; --brick-soft:#F4DED9; --amber:#8E6410; --amber-soft:#F3E7CC;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{--ground:#111514;--surface:#1A201E;--ink:#E3E8E5;--ink-2:#C3CCC8;
+        --muted:#95A09B;--line:#2B3432;--accent:#42C094;--accent-soft:#16302A;
+        --brick:#E3806A;--brick-soft:#3A211B;--amber:#D8A63F;--amber-soft:#332714;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+     font:16px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:var(--surface);border-bottom:1px solid var(--line);
+       padding:.75rem 1.25rem;display:flex;flex-wrap:wrap;gap:1rem;
+       align-items:center;justify-content:space-between}
+.brand{font-weight:700;letter-spacing:-.01em}
+.brand small{display:block;font-weight:400;font-size:.72rem;color:var(--muted);
+             letter-spacing:.1em;text-transform:uppercase}
+nav{display:flex;gap:1rem;flex-wrap:wrap}
+nav a{color:var(--ink-2);text-decoration:none;font-size:.92rem;padding:.25rem 0;
+      border-bottom:2px solid transparent}
+nav a:hover,nav a.on{color:var(--accent);border-bottom-color:var(--accent)}
+.actor{display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--muted)}
+.actor select{font:inherit;font-size:.82rem;padding:.25rem .4rem;
+              border:1px solid var(--line);border-radius:3px;
+              background:var(--surface);color:var(--ink)}
+main{max-width:1100px;margin:0 auto;padding:1.5rem 1.25rem 4rem}
+h1{font-size:1.5rem;letter-spacing:-.02em;margin:0 0 .35rem}
+.sub{color:var(--muted);margin:0 0 1.5rem;font-size:.95rem}
+.cards{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);
+       grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:1.75rem}
+.card{background:var(--surface);padding:.85rem 1rem}
+.card dt{font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;
+         color:var(--muted);font-family:var(--mono)}
+.card dd{margin:.35rem 0 0;font-size:1.35rem;font-weight:600;letter-spacing:-.02em;
+         font-variant-numeric:tabular-nums}
+.card dd small{display:block;font-size:.75rem;font-weight:400;color:var(--muted);
+               letter-spacing:0;margin-top:.15rem}
+.ok{color:var(--accent)} .bad{color:var(--brick)} .warn{color:var(--amber)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;background:var(--surface)}
+.scroll{overflow-x:auto;border:1px solid var(--line);margin-bottom:1.75rem}
+th{text-align:left;font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;
+   text-transform:uppercase;color:var(--muted);padding:.6rem .75rem;
+   border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:.55rem .75rem;border-bottom:1px solid var(--line);
+   vertical-align:top;color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:var(--mono);
+              font-variant-numeric:tabular-nums;white-space:nowrap}
+td.key{color:var(--ink);font-weight:600;white-space:nowrap}
+.pill{display:inline-block;font-family:var(--mono);font-size:.64rem;
+      padding:.1rem .4rem;border-radius:2px;border:1px solid currentColor}
+.pill.err{color:var(--brick);background:var(--brick-soft)}
+.pill.warn{color:var(--amber);background:var(--amber-soft)}
+.pill.info{color:var(--accent);background:var(--accent-soft)}
+h2{font-size:1.05rem;margin:0 0 .5rem;letter-spacing:-.01em}
+h2 + p{margin:0 0 .75rem;color:var(--muted);font-size:.88rem;max-width:70ch}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">SMCP Kallakudi<small>Fly ash plant register</small></div>
+  <nav>
+    <a href="/" class="{{ 'on' if page == 'dashboard' }}">Dashboard</a>
+    <a href="/reconciliation" class="{{ 'on' if page == 'reconciliation' }}">Reconciliation</a>
+    <a href="/anomalies" class="{{ 'on' if page == 'anomalies' }}">Error register</a>
+  </nav>
+  <form class="actor" method="post" action="/actor">
+    <label for="actor">Entering as</label>
+    <select id="actor" name="name" onchange="this.form.submit()">
+      {% for a in actors %}
+      <option value="{{ a }}" {{ 'selected' if a == actor }}>{{ a }}</option>
+      {% endfor %}
+    </select>
+    <noscript><button type="submit">Set</button></noscript>
+  </form>
+</header>
+<main>{% block body %}{% endblock %}</main>
+</body>
+</html>
