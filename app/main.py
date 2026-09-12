@@ -16,10 +16,11 @@ from sqlalchemy import text
 
 from app.db.models import ImportAnomaly
 from app.db.session import engine
+from app.reports import daily as daily_svc
 from app.reports.period import latest_period
 from app.reports.reconciliation import measure
 from app.web.actor import set_actor
-from app.web.render import db_session, page
+from app.web.render import db_session, page, parse_date
 from app.web.routers.labour import router as labour_router
 from app.web.routers.plant import router as plant_router
 from app.web.routers.stock import router as stock_router
@@ -83,6 +84,14 @@ def dashboard(request: Request, year: int = 0, month: int = 0,
     ]
     return page(request, "dashboard.html", page="dashboard",
                 cards=cards, stock=stock, salary=salary, year=year, month=month)
+
+
+@app.get("/daily")
+def daily_round(request: Request, date: str = "", db=Depends(db_session)):
+    day = parse_date(date)
+    the_round = daily_svc.round_for(db, day)
+    return page(request, "daily.html", page="daily", day=day,
+               round=the_round)
 
 
 @app.get("/reconciliation")

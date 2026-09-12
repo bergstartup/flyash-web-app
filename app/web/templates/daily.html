@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Daily round - {{ day }}{% endblock %}
+{% block body %}
+{% set pill_class = {"ok": "info", "warn": "warn", "bad": "err", "muted": "muted"} %}
+<h1>Daily round</h1>
+<p class="sub">Every figure below is read live off today's entries - nothing
+   here is its own record, so there is nothing to keep in step.</p>
+
+<form class="toolbar" method="get" action="/daily">
+  <input type="date" name="date" value="{{ day }}" onchange="this.form.submit()">
+  <span style="color:var(--muted);font-size:.85rem">{{ day.strftime('%A') }}</span>
+</form>
+
+<div class="round">
+{% for s in round.stations %}
+  <div class="stop">
+    <a class="name" href="{{ s.href }}">{{ s.label }}</a>
+    <span class="headline">{{ s.headline }}</span>
+    <span class="pill {{ pill_class[s.status] }}">{{ s.status }}</span>
+    {% if s.missing %}
+    <ul class="stop-detail">
+      <li>Missing: {{ s.missing|join(', ') }}</li>
+    </ul>
+    {% endif %}
+    {% if s.notes %}
+    <ul class="stop-detail">
+      {% for n in s.notes %}<li>{{ n }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+{% endfor %}
+</div>
+
+<div class="round-group">
+<h2>As needed, not everyday</h2>
+<div class="round">
+{% for s in round.as_needed %}
+  <div class="stop">
+    <a class="name" href="{{ s.href }}">{{ s.label }}</a>
+    <span class="headline">{{ s.headline }}</span>
+    <span class="pill {{ pill_class[s.status] }}">{{ s.status }}</span>
+  </div>
+{% endfor %}
+</div>
+</div>
+
+<div class="round-group">
+<h2>Before you close the day</h2>
+<div class="round">
+  <div class="stop">
+    <a class="name" href="/">Dashboard</a>
+    <span class="headline">Stock, cash and the meter should all have moved the way today did.</span>
+  </div>
+  <div class="stop">
+    <a class="name" href="{{ round.closing.href }}">{{ round.closing.label }}</a>
+    <span class="headline">{{ round.closing.headline }}</span>
+    <span class="pill {{ pill_class[round.closing.status] }}">{{ round.closing.status }}</span>
+  </div>
+</div>
+</div>
+{% endblock %}

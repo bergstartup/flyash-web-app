@@ -37,6 +37,7 @@ class Group:
 GROUPS: tuple[Group, ...] = (
     Group("Overview", (
         Item("dashboard", "Dashboard", "/"),
+        Item("daily", "Daily round", "/daily"),
         Item("reconciliation", "Reconciliation", "/reconciliation"),
         Item("anomalies", "Error register", "/anomalies"),
     )),
