@@ -756,16 +756,18 @@ class JulyImporter:
             lot_date = S.date(head)
             label = S.text(head) or f"LOT{col}"
             lot = m.MaterialLot(material_id=cement.id, lot_date=lot_date,
-                                label=label, qty_in=0.0, display_order=i)
+                                label=label, display_order=i)
             self.db.add(lot)
             self.db.flush()
             lot_cols[col] = lot
             self.cement_lots[label] = lot
             self.stats.add("material_lot")
 
+        first_day = dt.date(2026, 7, 1)
         prev = {col: (S.num(ws.cell(5, col).value) or 0.0) for col in lot_cols}
-        for col, v in prev.items():
-            lot_cols[col].qty_in = v          # balances standing on day one
+        for col, standing in prev.items():
+            if standing:
+                self._lot_inflow(lot_cols[col], first_day, standing)
 
         for r in range(5, 36):
             d = S.date(ws.cell(r, 1).value)
@@ -789,16 +791,24 @@ class JulyImporter:
                 if delta == 0:
                     continue
                 if delta < 0:
-                    # The lot grew: a receipt arriving, or a correction.
-                    lot.qty_in = round(lot.qty_in - delta, 3)
-                    if cons is None:
-                        continue
-                if cons is None:
-                    continue
-                self.db.add(m.ConsumptionAllocation(
-                    lot_id=lot.id, consumption_id=cons.id, qty=delta))
-                self.stats.add("lot_allocation")
+                    # The lot grew: stock arriving, dated to the day it landed
+                    # rather than folded into a total with no date on it.
+                    self._lot_inflow(lot, d, -delta)
+                elif cons is not None:
+                    self.db.add(m.ConsumptionAllocation(
+                        lot_id=lot.id, consumption_id=cons.id, qty=delta))
+                    self.stats.add("lot_allocation")
+                else:
+                    # The lot shrank on a day with nothing consumed. 19 Jul
+                    # moves 10 bags out of one bucket and into another with no
+                    # consumption behind either; the register does not say what
+                    # became of them, so neither does the app.
+                    self._lot_inflow(lot, d, -delta)
         self.db.flush()
+
+    def _lot_inflow(self, lot: m.MaterialLot, as_on: dt.date, qty: float) -> None:
+        self.db.add(m.MaterialLotInflow(lot_id=lot.id, as_on=as_on, qty=qty))
+        self.stats.add("lot_inflow")
 
     # -- Sheet17: receivables --------------------------------------------
 

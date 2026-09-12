@@ -242,29 +242,39 @@ SELECT
     ml.label,
     ml.lot_date,
     ml.display_order,
-    ml.qty_in,
-    ml.qty_in - COALESCE(
-        (SELECT SUM(ca.qty) FROM consumption_allocation ca WHERE ca.lot_id = ml.id),
-        0.0)         AS qty_remaining
+    COALESCE((SELECT SUM(i.qty) FROM material_lot_inflow i
+               WHERE i.lot_id = ml.id), 0.0)     AS qty_in,
+    COALESCE((SELECT SUM(i.qty) FROM material_lot_inflow i
+               WHERE i.lot_id = ml.id), 0.0)
+      - COALESCE((SELECT SUM(ca.qty) FROM consumption_allocation ca
+                   WHERE ca.lot_id = ml.id), 0.0) AS qty_remaining
 FROM material_lot ml;
 
 DROP VIEW IF EXISTS lot_balance_daily;
 CREATE VIEW lot_balance_daily AS
+-- What is left of each lot at the end of each day. A lot fills over several
+-- days -- Sheet12's "M / N" bucket takes stock on eight of them -- so only
+-- the inflows that have actually arrived by the day are counted.
 SELECT
-    d.cons_date,
-    ml.id                AS lot_id,
+    d.day            AS cons_date,
+    ml.id            AS lot_id,
     ml.material_id,
     ml.label,
     ml.display_order,
-    CASE WHEN ml.lot_date IS NULL OR ml.lot_date <= d.cons_date
-         THEN ml.qty_in ELSE 0.0 END
+    COALESCE((
+        SELECT SUM(i.qty) FROM material_lot_inflow i
+        WHERE i.lot_id = ml.id AND i.as_on <= d.day
+    ), 0.0)
       - COALESCE((
             SELECT SUM(ca.qty)
             FROM consumption_allocation ca
             JOIN material_consumption mc ON mc.id = ca.consumption_id
-            WHERE ca.lot_id = ml.id AND mc.cons_date <= d.cons_date
+            WHERE ca.lot_id = ml.id AND mc.cons_date <= d.day
         ), 0.0)        AS qty_remaining
-FROM (SELECT DISTINCT cons_date FROM material_consumption) d
+FROM (
+    SELECT DISTINCT cons_date AS day FROM material_consumption
+    UNION SELECT DISTINCT as_on FROM material_lot_inflow
+) d
 CROSS JOIN material_lot ml;
 
 DROP VIEW IF EXISTS material_daily;

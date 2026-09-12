@@ -440,9 +440,9 @@ class MaterialReceipt(Base):
 
 
 class MaterialLot(Base):
-    """C1: no ``qty_remaining``.
+    """C1: no ``qty_remaining``, and no ``qty_in`` either.
 
-    Remaining = ``qty_in - SUM(consumption_allocation.qty)``, derived in
+    Remaining = ``SUM(inflows) - SUM(consumption_allocation.qty)``, derived in
     ``views.sql``. Sheet12's by-lot columns are a pivot of that view.
     """
 
@@ -454,8 +454,32 @@ class MaterialLot(Base):
     lot_date: Mapped[dt.date | None] = mapped_column(Date)
     # Sheet12 labels two buckets "M / N" and "CON" rather than by date.
     label: Mapped[str] = mapped_column(String(20))
-    qty_in: Mapped[float] = mapped_column(Float)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
+
+    inflows: Mapped[list["MaterialLotInflow"]] = relationship(
+        back_populates="lot", cascade="all, delete-orphan"
+    )
+
+
+class MaterialLotInflow(Base):
+    """Stock arriving into a lot, on the day it arrived.
+
+    A lot is not filled once. Sheet12's "M / N" bucket takes stock on eight
+    separate days, and the 19 Jul top-up lands on a day with no consumption
+    at all, so an inflow cannot be modelled as a negative draw-down against a
+    consumption. Without the date, every lot looks full from the first of the
+    month and the by-lot balances are wrong for the days before it arrived.
+    """
+
+    __tablename__ = "material_lot_inflow"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    lot_id: Mapped[int] = mapped_column(ForeignKey("material_lot.id"))
+    receipt_id: Mapped[int | None] = mapped_column(ForeignKey("material_receipt.id"))
+    as_on: Mapped[dt.date] = mapped_column(Date, index=True)
+    qty: Mapped[float] = mapped_column(Float)
+
+    lot: Mapped[MaterialLot] = relationship(back_populates="inflows")
 
 
 class MaterialConsumption(Base):

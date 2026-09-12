@@ -68,8 +68,10 @@ def test_lot_balance_is_derived_not_stored(scratch):
     db, _ = scratch
     mat = m.RawMaterial(name="CEMENT", unit="BAGS", is_lot_tracked=1)
     db.add(mat); db.flush()
-    lot = m.MaterialLot(material_id=mat.id, label="L1", qty_in=100)
+    lot = m.MaterialLot(material_id=mat.id, label="L1")
     db.add(lot); db.flush()
+    db.add(m.MaterialLotInflow(lot_id=lot.id, as_on=dt.date(2026, 7, 1), qty=100))
+    db.flush()
     cons = m.MaterialConsumption(cons_date=dt.date(2026, 7, 2),
                                  material_id=mat.id, qty=12.5)
     db.add(cons); db.flush()
@@ -84,8 +86,10 @@ def test_a_lot_can_be_returned_to(scratch):
     db, _ = scratch
     mat = m.RawMaterial(name="CEMENT", unit="BAGS", is_lot_tracked=1)
     db.add(mat); db.flush()
-    lot = m.MaterialLot(material_id=mat.id, label="L1", qty_in=10)
+    lot = m.MaterialLot(material_id=mat.id, label="L1")
     db.add(lot); db.flush()
+    db.add(m.MaterialLotInflow(lot_id=lot.id, as_on=dt.date(2026, 7, 1), qty=10))
+    db.flush()
     cons = m.MaterialConsumption(cons_date=dt.date(2026, 7, 4),
                                  material_id=mat.id, qty=0)
     db.add(cons); db.flush()
@@ -99,7 +103,7 @@ def test_an_allocation_needs_exactly_one_source(scratch):
     db, _ = scratch
     mat = m.RawMaterial(name="CEMENT", unit="BAGS")
     db.add(mat); db.flush()
-    lot = m.MaterialLot(material_id=mat.id, label="L1", qty_in=10)
+    lot = m.MaterialLot(material_id=mat.id, label="L1")
     db.add(lot); db.flush()
     db.add(m.ConsumptionAllocation(lot_id=lot.id, qty=1))
     with pytest.raises(Exception):
@@ -117,3 +121,28 @@ def test_fixed_wage_labour_appears_without_attendance(scratch):
     row = db.execute(text(
         "SELECT duty, salary, total_payment FROM salary_month")).first()
     assert row == (31, 75000, 75000)
+
+
+def test_a_lot_is_empty_until_its_stock_actually_arrives(scratch):
+    """Sheet12's buckets fill over several days, and the by-lot balance for a
+    day before an arrival must not count it."""
+    db, _ = scratch
+    mat = m.RawMaterial(name="CEMENT", unit="BAGS", is_lot_tracked=1)
+    db.add(mat); db.flush()
+    lot = m.MaterialLot(material_id=mat.id, label="M / N")
+    db.add(lot); db.flush()
+    db.add(m.MaterialLotInflow(lot_id=lot.id, as_on=dt.date(2026, 7, 1), qty=9))
+    db.add(m.MaterialLotInflow(lot_id=lot.id, as_on=dt.date(2026, 7, 19), qty=10))
+    cons = m.MaterialConsumption(cons_date=dt.date(2026, 7, 2),
+                                 material_id=mat.id, qty=7.5)
+    db.add(cons); db.flush()
+    db.add(m.ConsumptionAllocation(lot_id=lot.id, consumption_id=cons.id, qty=7.5))
+    db.commit()
+    by_day = dict(db.execute(text(
+        "SELECT cons_date, qty_remaining FROM lot_balance_daily")).all())
+    assert by_day["2026-07-01"] == pytest.approx(9)
+    assert by_day["2026-07-02"] == pytest.approx(1.5)
+    # the 19th's ten bags are not there on the 2nd, and are on the 19th
+    assert by_day["2026-07-19"] == pytest.approx(11.5)
+    assert db.execute(text(
+        "SELECT qty_remaining FROM lot_balance")).scalar() == pytest.approx(11.5)

@@ -174,6 +174,19 @@ WHITELIST.update({
     for cell in ("N22", "O22", "N23", "O23", "N24", "O24")
 })
 
+# Sheet12's by-lot block and its one cross-register disagreement.
+WHITELIST.update({
+    ("Sheet12", cell): "the row total written as J+K+L where the sheet's other "
+                       "thirty rows use SUM over the lots that have landed"
+    for cell in ("R5", "R6", "R7", "R8")
+})
+WHITELIST[("Sheet12", "I23")] = (
+    "a note against a day that consumed nothing, so there is no consumption "
+    "for it to belong to")
+WHITELIST[("Sheet12", "D35")] = (
+    "A04 -- FAP cement inward on 31 Jul: the raw-material register says 30 "
+    "bags and the cement log says 31")
+
 # Sheet16's S.No repeats 8 -- AUGUST and SEPTEMBER 2024 are both numbered 8 --
 # so it runs one short of the 31 months it lists.
 WHITELIST.update({
