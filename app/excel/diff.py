@@ -121,6 +121,63 @@ WHITELIST.update({("Sheet8", where): _ORDER for where in (
 WHITELIST[("Sheet8", "2026-07-30 0 450")] = (
     "A02 -- a sale Sheet6 records and Sheet8 never posted")
 
+# Sheet6's own hand, row by row.
+WHITELIST.update({
+    ("Sheet6", cell): "a stray 0 in the per-day column on the day's first "
+                      "row; three of July's thirty-one days have one"
+    for cell in ("G5", "G10", "G16")
+})
+WHITELIST.update({
+    ("Sheet6", cell): "the account a digital sale was paid into. The app "
+                      "records that the sale was digital; which account "
+                      "received it is the digital ledger's business"
+    for cell in ("L34", "L61", "L66", "L96", "L114", "L181")
+})
+WHITELIST.update({
+    ("Sheet6", cell): "free text written into a payment column, not a payment"
+    for cell in ("L100", "K153")
+})
+WHITELIST[("Sheet6", "B110")] = (
+    "the one continuation line left blank where the register's other thirteen "
+    "ditto the S.No")
+WHITELIST.update({
+    ("Sheet6", cell): "a three-line sale marked paid on its third line only; "
+                      "the app marks every line of the sale"
+    for cell in ("J151", "J152")
+})
+WHITELIST[("Sheet6", "J196")] = (
+    "marked both CASH and CREDIT; the app records one mode and a credit sale "
+    "is the one that leaves a debt")
+
+# Sheet16's S.No repeats 8 -- AUGUST and SEPTEMBER 2024 are both numbered 8 --
+# so it runs one short of the 31 months it lists.
+WHITELIST.update({
+    ("Sheet16", f"A{row}"): "hand-typed S.No repeats 8 for SEPTEMBER 2024 and "
+                            "runs one short; the app numbers the months it lists"
+    for row in list(range(14, 21)) + list(range(23, 35)) + list(range(37, 41))
+})
+
+# The last two months carry TOTAL and CLOSING as formulas where the other 35
+# carry figures. The app follows the sheet's own dominant convention; either
+# way the number is derived, not typed by anybody.
+WHITELIST.update({
+    ("Sheet16", cell): "TOTAL and CLOSING written as a formula here and as a "
+                       "figure in the sheet's other 35 rows"
+    for cell in ("F39", "H39", "F40", "H40")
+})
+
+#: Whole column ranges the app deliberately does not reproduce, per sheet.
+#: (sheet -> (first column, last column, why))
+WHITELIST_COLUMNS: dict[str, tuple[int, int, str]] = {
+    # Sheet6's margin carries "P / PAY  PAULRAJ.T  A / C  <amount>  RS"
+    # against whichever row the pen happened to be on. It is a jotting of
+    # digital collections, not a property of the sale beside it -- the amounts
+    # do not match those sales, and all thirty of them are already rows in the
+    # digital ledger, which is where the app keeps them.
+    "Sheet6": (13, 17, "the margin's digital-collection jottings live in the "
+                       "digital ledger; all 30 amounts reconcile there"),
+}
+
 #: Sheets whose export is a master rather than a transaction replay. Their rows
 #: are compared as a set of records, because the app deliberately collapses
 #: duplicates that the register repeats -- see anomaly A12.
@@ -248,11 +305,16 @@ def _diff_cells(name: str, a, b, skip: range | None = None) -> SheetResult:
             if kind is None:
                 continue
             ref = a.cell(r, c).coordinate
-            if (name, ref) in WHITELIST:
+            if (name, ref) in WHITELIST or _in_excluded_columns(name, c):
                 continue
             diffs.append(Difference(name, ref, a.cell(r, c).value,
                                     b.cell(r, c).value, kind))
     return SheetResult(name, True, diffs, compared)
+
+
+def _in_excluded_columns(sheet: str, column: int) -> bool:
+    span = WHITELIST_COLUMNS.get(sheet)
+    return bool(span and span[0] <= column <= span[1])
 
 
 def _key(value) -> str | None:

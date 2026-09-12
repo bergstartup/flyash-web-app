@@ -486,6 +486,11 @@ class JulyImporter:
                 current = self._new_sale(ws, r, carry_date, 1)
                 line_no = 0
             line_no += 1
+            # A trip's payment can be marked against any of its lines -- the
+            # 12 July sale carries CASH on its third -- so a sale that has not
+            # been marked yet keeps looking down its own lines.
+            if current.payment_mode is None:
+                current.payment_mode = self._payment_mode(ws, r)
             rate = S.num(ws.cell(r, 5).value)
             amount = S.num(ws.cell(r, 6).value)
             if amount is None:
@@ -501,20 +506,31 @@ class JulyImporter:
                 self.stats.add("sale_line_amount_overridden")
         self.db.flush()
 
-    def _new_sale(self, ws, r: int, d: dt.date, seq: int) -> m.Sale:
+    @staticmethod
+    def _payment_mode(ws, r: int) -> str | None:
+        """How the register marked this row paid.
+
+        What is written on the sale wins. The P / PAY amount in the margin is
+        a digital collection into PAULRAJ.T's account, not a property of the
+        sale beside it -- the amounts do not even match -- so it only decides
+        the mode when nothing else does.
+        """
         cash = S.text(ws.cell(r, 10).value)
-        credit = S.text(ws.cell(r, 11).value)
+        # The CREDIT column also gets used for notes -- 'RS 3000' against two
+        # July rows -- so only the word itself marks a credit sale.
+        credit = "CREDIT" in (S.text(ws.cell(r, 11).value) or "").upper()
         digital = S.text(ws.cell(r, 12).value)
-        pay_amt = S.num(ws.cell(r, 16).value)
-        collector = S.text(ws.cell(r, 14).value)
         if credit:
-            mode = "CREDIT"
-        elif digital or pay_amt:
-            mode = "DIGITAL"
-        elif cash:
-            mode = "CASH"
-        else:
-            mode = None
+            return "CREDIT"
+        if cash:
+            return "CASH"
+        if digital or S.num(ws.cell(r, 16).value):
+            return "DIGITAL"
+        return None
+
+    def _new_sale(self, ws, r: int, d: dt.date, seq: int) -> m.Sale:
+        collector = S.text(ws.cell(r, 14).value)
+        mode = self._payment_mode(ws, r)
         while (d, seq) in self.sale_by_key:
             seq += 1000                      # keep the unique key intact
         sale = m.Sale(

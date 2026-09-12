@@ -73,10 +73,11 @@ expectation both key off them. Where the register's own formulas are
 inconsistent by hand, the app emits correct consistent ones and the diff
 harness whitelists the difference with a reason (`app/excel/diff.py`).
 
-Writers implemented: **Sheet2, Sheet3, Sheet4, Sheet5, Sheet8, Sheet9,
-Sheet13, Sheet14, Sheet15** -- the labour block, the three stock ledgers and
-the customer master. The other 11 are reported as `NOT IMPLEMENTED` by the
-diff harness rather than silently passing, and land in Phases 2–6.
+Writers implemented: **Sheet2, Sheet3, Sheet4, Sheet5, Sheet6, Sheet8,
+Sheet9, Sheet13, Sheet14, Sheet15, Sheet16** -- the labour block, the three
+stock ledgers, the sales register, the monthly roll-up and the customer
+master. The other 9 are reported as `NOT IMPLEMENTED` by the diff harness
+rather than silently passing, and land in Phases 3–6.
 
 The three stock ledgers are compared as a *sequence* of movements rather than
 address by address, because the two sides legitimately post different numbers
