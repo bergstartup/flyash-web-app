@@ -906,7 +906,9 @@ class JulyImporter:
                 production_area=S.num(ws.cell(r, 3).value),
                 today_prodn=S.num(ws.cell(r, 4).value),
                 pallets_stocked=S.num(ws.cell(r, 6).value),
-                shifted_from_stocking=S.num(ws.cell(r, 7).value)))
+                shifted_from_stocking=S.num(ws.cell(r, 7).value),
+                production_balance=S.num(ws.cell(r, 8).value),
+                stocking_balance=S.num(ws.cell(r, 9).value)))
             self.stats.add("pallet_movement")
         self.db.flush()
 

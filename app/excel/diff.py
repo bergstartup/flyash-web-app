@@ -211,6 +211,19 @@ WHITELIST[("Sheet1", "A38")] = (
     "the closing reading is written with no date against it; it was taken on "
     "the 1st of the next month and the app says so")
 
+# Sheet20 switches its total from H+I to SUM(H:I) halfway down, and keeps a
+# trailing row of zeroes with no date under the data. The app emits one form
+# and stops at the last day.
+WHITELIST.update({
+    ("Sheet20", f"J{row}"): "the row total switches to SUM halfway down the "
+                            "sheet; the app emits one form throughout"
+    for row in range(22, 37)
+})
+WHITELIST.update({
+    ("Sheet20", f"{column}37"): "a trailing row of zeroes with no date against it"
+    for column in "BCDEFGHIJ"
+})
+
 # Sheet16's S.No repeats 8 -- AUGUST and SEPTEMBER 2024 are both numbered 8 --
 # so it runs one short of the 31 months it lists.
 WHITELIST.update({

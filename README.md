@@ -15,7 +15,7 @@ plan — the phases, the sheet-by-sheet analysis and the schema decisions.
 | 4 | Raw materials, cement lots (Sheets 10, 12) | done |
 | 3 | Customers, deliveries, receivables (Sheets 7, 17, 18) | deferred |
 | 5 | Power, digital ledger (Sheets 1, 19) | done |
-| 6 | Pallets, bike mileage (Sheets 11, 20) | |
+| 6 | Pallets (Sheet 20) · bike mileage (Sheet 11) | pallets done |
 
 ## Guiding rule
 
@@ -86,10 +86,11 @@ harness whitelists the difference with a reason (`app/excel/diff.py`).
 
 Writers implemented: **Sheet2, Sheet3, Sheet4, Sheet5, Sheet6, Sheet8,
 Sheet9, Sheet10, Sheet12, Sheet13, Sheet14, Sheet15, Sheet16, Sheet19**
-and **Sheet1** --
+**Sheet1** and **Sheet20** --
 the labour block, the three stock ledgers, the sales register, the monthly
 roll-up, raw materials, the cement log, the customer master and the digital
-ledger and the power book. The other 5 are reported as `NOT IMPLEMENTED` by the diff harness
+ledger, the power book and the pallet register. The other 4 are
+reported as `NOT IMPLEMENTED` by the diff harness
 rather than silently passing.
 
 The three stock ledgers are compared as a *sequence* of movements rather than

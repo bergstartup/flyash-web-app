@@ -596,6 +596,11 @@ class PalletMovement(Base):
     today_prodn: Mapped[float | None] = mapped_column(Float)
     pallets_stocked: Mapped[float | None] = mapped_column(Float)
     shifted_from_stocking: Mapped[float | None] = mapped_column(Float)
+    # What is standing in each area at the end of the day. Not derivable from
+    # the columns above -- 28 July counts 4 in production and 3 in stocking
+    # against 4 made -- so the register counts them and so does the app.
+    production_balance: Mapped[float | None] = mapped_column(Float)
+    stocking_balance: Mapped[float | None] = mapped_column(Float)
 
 
 class BikeMileage(Base):
