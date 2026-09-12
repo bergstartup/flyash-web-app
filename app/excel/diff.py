@@ -187,6 +187,12 @@ WHITELIST[("Sheet12", "D35")] = (
     "A04 -- FAP cement inward on 31 Jul: the raw-material register says 30 "
     "bags and the cement log says 31")
 
+WHITELIST.update({
+    ("Sheet19", cell): "the date written out again on a second entry for the "
+                       "same day, where the ledger's other rows ditto it"
+    for cell in ("A11", "A22")
+})
+
 # Sheet16's S.No repeats 8 -- AUGUST and SEPTEMBER 2024 are both numbered 8 --
 # so it runs one short of the 31 months it lists.
 WHITELIST.update({
