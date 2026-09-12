@@ -19,6 +19,8 @@ client = TestClient(app)
     "/products", "/production", "/production?date=2026-07-15",
     "/sales", "/sales?date=2026-07-02", "/stock",
     "/stock?product_id=1&year=2026&month=7",
+    "/materials", "/materials?date=2026-07-06",
+    "/consumption", "/consumption?date=2026-07-02",
 ])
 def test_pages_render(path):
     r = client.get(path)
@@ -64,3 +66,21 @@ def test_the_products_screen_lists_the_three_ledger_products():
     body = client.get("/products").text
     for sheet in ("Sheet5", "Sheet8", "Sheet9"):
         assert sheet in body
+
+
+def test_the_materials_screen_names_its_materials():
+    body = client.get("/materials?date=2026-07-06").text
+    assert "SHRI VARI BLUE METAL" in body
+    assert "POWDER" in body
+
+
+def test_the_consumption_screen_lists_the_cement_lots():
+    body = client.get("/consumption?date=2026-07-02").text
+    assert "M / N" in body
+
+
+def test_drawing_more_than_a_lot_holds_comes_back_as_a_message():
+    r = client.post("/consumption", follow_redirects=False, data={
+        "date": "2026-07-02", "material_id": "8", "lot_1": "99999"})
+    assert r.status_code == 303
+    assert "error=" in r.headers["location"]

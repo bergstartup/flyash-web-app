@@ -1,4 +1,7 @@
-"""Routes for the Phase 2 screens: products, production, sales and the ledger.
+"""Routes for the stock screens.
+
+Phase 2: products, production, sales and the stock ledger. Phase 4: raw
+material receipts and cement consumption.
 
 The sale screen is the point of the phase. One form writes one sale, and
 Sheets 5, 6, 8, 9 and 16 all read it -- where today the same trip is keyed
@@ -17,6 +20,7 @@ from sqlalchemy import text
 from app.db.models import Customer, Vehicle
 from app.db.session import SessionLocal
 from app.reports.period import latest_period
+from app.services import material as material_svc
 from app.services import product as product_svc
 from app.services import production as production_svc
 from app.services import sale as sale_svc
@@ -224,3 +228,78 @@ def _summary(db, product_id: int, start: dt.date):
         FROM stock_month_summary
         WHERE product_id = :p AND period_start = :start"""),
         {"p": product_id, "start": start.isoformat()}).first()
+
+
+# -- Raw materials and cement (Phase 4) -------------------------------------
+
+@router.get("/materials")
+def materials_form(request: Request, date: str = "", db=Depends(db_session)):
+    day = _parse_date(date)
+    all_materials = material_svc.materials(db)
+    return page(request, "stock/materials.html", page="materials", day=day,
+                materials=all_materials,
+                material_names={m.id: m.name for m in all_materials},
+                suppliers=material_svc.suppliers(db),
+                receipts=material_svc.receipts_for_day(db, day),
+                lots_by_material={
+                    m.id: material_svc.lots(db, m.id)
+                    for m in all_materials if m.is_lot_tracked},
+                low=material_svc.below_reorder(db),
+                error=request.query_params.get("error"))
+
+
+@router.post("/materials")
+def materials_receive(request: Request, date: str = Form(...),
+                      material_id: int = Form(...), qty: float = Form(...),
+                      rate: float = Form(...), amount: str = Form(""),
+                      supplier_id: str = Form(""), bill_no: str = Form(""),
+                      vehicle_no: str = Form(""), driver_name: str = Form(""),
+                      payment_status: str = Form("PENDING"),
+                      lot_id: str = Form(""), db=Depends(db_session)):
+    day = _parse_date(date)
+    try:
+        material_svc.receive(
+            db, current_actor(request), receipt_date=day,
+            material_id=material_id, qty=qty, rate=rate,
+            amount=float(amount) if amount else None,
+            supplier_id=int(supplier_id) if supplier_id else None,
+            bill_no=bill_no or None, vehicle_no=vehicle_no or None,
+            driver_name=driver_name or None, payment_status=payment_status,
+            lot_id=int(lot_id) if lot_id else None)
+    except (ValueError, PeriodLocked) as exc:
+        return _redirect_with_error(f"/materials?date={day.isoformat()}", exc)
+    return RedirectResponse(f"/materials?date={day.isoformat()}", status_code=303)
+
+
+@router.get("/consumption")
+def consumption_form(request: Request, date: str = "", material_id: int = 0,
+                     db=Depends(db_session)):
+    day = _parse_date(date)
+    tracked = [m for m in material_svc.materials(db) if m.is_lot_tracked]
+    if not material_id and tracked:
+        material_id = tracked[0].id
+    return page(request, "stock/consumption.html", page="consumption", day=day,
+                materials=tracked, material_id=material_id,
+                lots=[(lot, material_svc.remaining(db, lot[0], day))
+                      for lot in material_svc.lots(db, material_id)]
+                     if material_id else [],
+                entries=material_svc.consumption_for_day(db, day),
+                error=request.query_params.get("error"))
+
+
+@router.post("/consumption")
+async def consumption_save(request: Request, db=Depends(db_session)):
+    form = await request.form()
+    day = _parse_date(form.get("date"))
+    material_id = int(form["material_id"])
+    url = f"/consumption?date={day.isoformat()}&material_id={material_id}"
+    allocations = {
+        int(key.removeprefix("lot_")): float(value)
+        for key, value in form.items() if key.startswith("lot_") and value}
+    try:
+        material_svc.consume(db, current_actor(request), cons_date=day,
+                             material_id=material_id, allocations=allocations,
+                             remarks=form.get("remarks") or None)
+    except (ValueError, PeriodLocked, material_svc.LotShortfall) as exc:
+        return _redirect_with_error(url, exc)
+    return RedirectResponse(url, status_code=303)

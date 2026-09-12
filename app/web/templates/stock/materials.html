@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Materials - {{ day }}{% endblock %}
+{% block body %}
+<h1>Raw materials in</h1>
+<p class="sub">One entry per delivery. The register spreads these across seven
+   columns, one per material; here a material is a row, so an eighth one is a
+   record rather than a new column.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% if low %}
+<div class="warn">
+  {% for name, level, on_hand in low %}
+  {{ name }} is down to {{ '{:,.1f}'.format(on_hand) }} against a reorder level
+  of {{ '{:,.1f}'.format(level) }}.
+  {% endfor %}
+</div>
+{% endif %}
+
+<form class="toolbar" method="get" action="/materials">
+  <input type="date" name="date" value="{{ day }}" onchange="this.form.submit()">
+  <span style="color:var(--muted);font-size:.85rem">{{ day.strftime('%A') }}</span>
+</form>
+
+<h2>Record a delivery</h2>
+<form method="post" action="/materials" class="toolbar">
+  <input type="hidden" name="date" value="{{ day }}">
+  <select name="material_id" required>
+    {% for m in materials %}
+    <option value="{{ m.id }}">{{ m.name }} ({{ m.unit }})</option>
+    {% endfor %}
+  </select>
+  <select name="supplier_id">
+    <option value="">Supplier --</option>
+    {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+  </select>
+  <input type="number" step="0.01" name="qty" placeholder="Qty" required style="width:6rem">
+  <input type="number" step="0.01" name="rate" placeholder="Rate" required style="width:6rem">
+  <input type="number" step="0.01" name="amount" placeholder="qty x rate" style="width:8rem">
+  <input name="bill_no" placeholder="Bill no" style="width:8rem">
+  <input name="vehicle_no" placeholder="Vehicle" style="width:8rem">
+  <input name="driver_name" placeholder="Driver" style="width:8rem">
+  <select name="payment_status">
+    <option value="PENDING">PENDING</option><option value="PAID">PAID</option>
+  </select>
+  <select name="lot_id">
+    <option value="">Lot -- new</option>
+    {% for mid, lots in lots_by_material.items() %}
+      {% for lot in lots %}
+      <option value="{{ lot[0] }}">{{ lot[1] }} ({{ '{:,.1f}'.format(lot[4]) }} left)</option>
+      {% endfor %}
+    {% endfor %}
+  </select>
+  <button type="submit">Record</button>
+</form>
+<p class="sub">A lot-tracked material needs a lot. Leave it on <em>new</em> and
+   the delivery opens one named for the day.</p>
+
+<h2>{{ day.strftime('%d %B %Y') }}</h2>
+<div class="scroll">
+<table>
+  <thead><tr><th>Material</th><th class="num">Qty</th><th class="num">Rate</th>
+    <th class="num">Amount</th><th>Bill</th><th>Vehicle</th><th>Driver</th>
+    <th>Status</th></tr></thead>
+  <tbody>
+  {% for r in receipts %}
+    <tr>
+      <td class="key">{{ material_names[r.material_id] }}</td>
+      <td class="num">{{ '{:,.2f}'.format(r.qty) }}</td>
+      <td class="num">{{ '{:,.2f}'.format(r.rate) }}</td>
+      <td class="num {{ 'bad' if r.amount_overridden }}">{{ '{:,.0f}'.format(r.amount) }}</td>
+      <td>{{ r.bill_no or 'NIL' }}</td>
+      <td>{{ r.vehicle_no or 'NIL' }}</td>
+      <td>{{ r.driver_name or 'NIL' }}</td>
+      <td>{{ r.payment_status }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="8" style="color:var(--muted)">Nothing received this day.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Lots</h2>
+<div class="scroll">
+<table>
+  <thead><tr><th>Lot</th><th>Arrived</th><th class="num">In</th>
+    <th class="num">Left</th></tr></thead>
+  <tbody>
+  {% for mid, lots in lots_by_material.items() %}
+    {% for lot in lots %}
+    <tr><td class="key">{{ lot[1] }}</td><td>{{ lot[2] or '--' }}</td>
+      <td class="num">{{ '{:,.1f}'.format(lot[3]) }}</td>
+      <td class="num">{{ '{:,.1f}'.format(lot[4]) }}</td></tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

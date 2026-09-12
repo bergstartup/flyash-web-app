@@ -12,9 +12,9 @@ plan — the phases, the sheet-by-sheet analysis and the schema decisions.
 | 0 | Schema, views, July import, anomaly detector, export harness | done |
 | 1 | Labour: masters, attendance, extra work, advances, salary | done |
 | 2 | Products, production, sales, stock ledgers, monthly roll-up | done |
-| 3 | Customers, deliveries, receivables (Sheets 7, 17, 18) | next |
-| 4 | Raw materials, cement lots (Sheets 10, 12) | |
-| 5 | Power, digital ledger (Sheets 1, 19) | |
+| 4 | Raw materials, cement lots (Sheets 10, 12) | done |
+| 3 | Customers, deliveries, receivables (Sheets 7, 17, 18) | deferred |
+| 5 | Power (Sheet 1) · digital ledger (Sheet 19) | ledger done |
 | 6 | Pallets, bike mileage (Sheets 11, 20) | |
 
 ## Guiding rule
@@ -85,10 +85,11 @@ inconsistent by hand, the app emits correct consistent ones and the diff
 harness whitelists the difference with a reason (`app/excel/diff.py`).
 
 Writers implemented: **Sheet2, Sheet3, Sheet4, Sheet5, Sheet6, Sheet8,
-Sheet9, Sheet13, Sheet14, Sheet15, Sheet16** -- the labour block, the three
-stock ledgers, the sales register, the monthly roll-up and the customer
-master. The other 9 are reported as `NOT IMPLEMENTED` by the diff harness
-rather than silently passing, and land in Phases 3–6.
+Sheet9, Sheet10, Sheet12, Sheet13, Sheet14, Sheet15, Sheet16, Sheet19** --
+the labour block, the three stock ledgers, the sales register, the monthly
+roll-up, raw materials, the cement log, the customer master and the digital
+ledger. The other 6 are reported as `NOT IMPLEMENTED` by the diff harness
+rather than silently passing.
 
 The three stock ledgers are compared as a *sequence* of movements rather than
 address by address, because the two sides legitimately post different numbers
