@@ -193,6 +193,24 @@ WHITELIST.update({
     for cell in ("A11", "A22")
 })
 
+# Sheet1 restates the 16 June anchor halfway down -- same date, same two
+# readings -- as a separator where a new page begins, and from there points
+# the cumulative column at the copy. The app keeps one anchor, so the copy has
+# no row and the cumulative column keeps subtracting the original. Both hold
+# the same readings, so every figure is unchanged.
+_RESTATED = ("the register restates the 16 June anchor mid-sheet and points "
+             "the cumulative column at the copy; the app keeps one anchor, "
+             "and the two hold identical readings")
+WHITELIST[("Sheet1", "2026-06-16 57569 69767")] = _RESTATED
+WHITELIST.update({
+    ("Sheet1", f"{column}{row}"): _RESTATED
+    for row in range(25, 39) for column in ("G", "H")
+})
+
+WHITELIST[("Sheet1", "A38")] = (
+    "the closing reading is written with no date against it; it was taken on "
+    "the 1st of the next month and the app says so")
+
 # Sheet16's S.No repeats 8 -- AUGUST and SEPTEMBER 2024 are both numbered 8 --
 # so it runs one short of the 31 months it lists.
 WHITELIST.update({
@@ -246,6 +264,9 @@ RECORD_MODE: dict[str, tuple[int, int, tuple[int, ...]]] = {
 #: compared by address.
 SEQUENCE_MODE: dict[str, tuple[int, int, int, tuple[int, ...]]] = {
     # sheet -> (first data row, last data row, last column, key columns)
+    # Sheet1 restates the same 16 June anchor halfway down, and the app keeps
+    # one anchor, so the register carries a row the app does not.
+    "Sheet1": (5, 38, 10, (2, 3)),
     "Sheet5": (5, 187, 10, (4, 6)),
     "Sheet8": (5, 35, 8, (3, 5)),
     "Sheet9": (5, 17, 8, (3, 5)),
@@ -285,6 +306,10 @@ def _show(v):
     if isinstance(v, float) and v == int(v):
         return int(v)
     return v
+
+
+def _is_formula(value) -> bool:
+    return isinstance(value, str) and value.startswith("=")
 
 
 def _norm_formula(v: str) -> str:
@@ -408,16 +433,50 @@ def _diff_records(name: str, a, b) -> SheetResult:
 DITTO_MARKS = {'"', "''", "''"}
 
 
-def _rebase(value, row: int):
-    """Make a self-referencing formula comparable at a different row.
+def _formulas_agree(expected, expected_row: int, actual, actual_row: int) -> bool:
+    """Whether two aligned cells state the same thing.
 
-    ``=B29+C29`` on row 29 and ``=B30+C30`` on row 30 say the same thing. Only
-    references to the formula's own row are blanked; a reference to any other
-    row is real information and is left alone.
+    Aligned rows may sit at different addresses, so a formula can say the same
+    thing in two ways, and a single formula can use both at once. ``=B22-B5``
+    is this row's reading less *the anchor*, which has not moved; ``=B23-B22``
+    is this row's reading less *the row above*, which has. So both readings
+    are tried, and either one agreeing is enough:
+
+    * by address, with the formula's own row blanked -- ``=B22-B5`` on row 22
+      and ``=B21-B5`` on row 21 both become ``B#-B5``;
+    * by offset -- ``=B23-B22`` on row 23 and ``=B22-B21`` on row 22 both
+      become ``B[0]-B[-1]``.
+    """
+    if _norm_formula(str(expected)) == _norm_formula(str(actual)):
+        return True
+    if _blank_own_row(expected, expected_row) == _blank_own_row(actual, actual_row):
+        return True
+    return _rebase(expected, expected_row) == _rebase(actual, actual_row)
+
+
+def _blank_own_row(value, row: int):
+    """Blank references to the formula's own row, leaving the rest absolute."""
+    if not _is_formula(value):
+        return value
+    return re.sub(rf"([A-Z]{{1,3}}){row}\b", r"\1#", value.upper())
+
+
+def _rebase(value, row: int):
+    """Rewrite a formula's row references as offsets from its own row.
+
+    Two rows that have been aligned may sit at different addresses, so
+    ``=B23-B22`` on row 23 and ``=B22-B21`` on row 22 say the same thing: this
+    row's reading less the one above. Both become ``=B[0]-B[-1]``.
+
+    A reference that is genuinely somewhere else stays different -- the anchor
+    at ``B5`` and the anchor at ``B21`` do not become the same reference just
+    because both are being subtracted.
     """
     if not isinstance(value, str) or not value.startswith("="):
         return value
-    return re.sub(rf"([A-Z]{{1,3}}){row}\b", r"\1#", value.upper())
+    return re.sub(r"([A-Z]{1,3})(\d+)\b",
+                  lambda mo: f"{mo.group(1)}[{int(mo.group(2)) - row}]",
+                  value.upper())
 
 
 def _movement_rows(ws, first: int, last: int, cols: int,
@@ -482,8 +541,12 @@ def _diff_sequence(name: str, a, b) -> SheetResult:
             for c, (expected, actual) in enumerate(
                     zip(src_values, gen_values), start=1):
                 compared += 1
-                kind = compare_cell(_rebase(expected, src_row),
-                                    _rebase(actual, gen_row))
+                if _is_formula(expected) and _is_formula(actual):
+                    if _formulas_agree(expected, src_row, actual, gen_row):
+                        continue
+                    kind = "formula"
+                else:
+                    kind = compare_cell(expected, actual)
                 if kind is None:
                     continue
                 ref = a.cell(src_row, c).coordinate

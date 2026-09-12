@@ -44,17 +44,30 @@ def test_cell_comparison_rules(a, b, expected):
     assert compare_cell(a, b) == expected
 
 
-@pytest.mark.parametrize("value,row,expected", [
-    ("=B29+C29", 29, "=B#+C#"),
-    ("=B30+C30", 30, "=B#+C#"),
-    # a reference to another row is real information, not layout
-    ("=E13-F13", 14, "=E13-F13"),
-    ("=SUM(C5:C35)", 36, "=SUM(C5:C35)"),
-    (452, 5, 452),
-    (None, 5, None),
+@pytest.mark.parametrize("value,row,other,shifted", [
+    # the same statement at two different addresses
+    ("=B29+C29", 29, "=B30+C30", 30),
+    ("=B23-B22", 23, "=B22-B21", 22),
+    ("=SUM(C5:C35)", 36, "=SUM(C4:C34)", 35),
 ])
-def test_self_references_are_rebased_so_shifted_rows_compare(value, row, expected):
-    assert _rebase(value, row) == expected
+def test_aligned_rows_compare_whatever_address_they_sit_at(value, row, other,
+                                                           shifted):
+    assert _rebase(value, row) == _rebase(other, shifted)
+
+
+@pytest.mark.parametrize("value,row,other,shifted", [
+    # the cumulative column pointed at a different anchor: a real difference
+    ("=B25-B21", 25, "=B24-B5", 24),
+    ("=E13-F13", 14, "=E12-F12", 14),
+])
+def test_a_reference_somewhere_else_stays_a_difference(value, row, other,
+                                                       shifted):
+    assert _rebase(value, row) != _rebase(other, shifted)
+
+
+@pytest.mark.parametrize("value", [452, None, "NIL"])
+def test_rebasing_leaves_everything_that_is_not_a_formula_alone(value):
+    assert _rebase(value, 5) == value
 
 
 def test_a_shifted_ledger_still_reports_only_its_real_differences(generated, workbook):
