@@ -22,7 +22,9 @@ def test_pages_render(path):
 
 
 def test_dashboard_shows_derived_totals():
-    body = client.get("/").text
+    # Pinned to July: the dashboard follows the latest month with data, so an
+    # entry keyed for any later month would otherwise empty this page.
+    body = client.get("/?year=2026&month=7").text
     assert "1,069,943" in body        # sales, derived from sale_line
     assert "296,742" in body          # wages, derived from attendance
 

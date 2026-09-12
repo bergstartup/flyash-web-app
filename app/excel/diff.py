@@ -24,10 +24,43 @@ WHITELIST: dict[tuple[str, str], str] = {
                        "consistent range per column",
     ("Sheet2", "J38"): "hand-adjusted SUM start row; the app emits one "
                        "consistent range per column",
+    ("Sheet3", "V29"): "A05 -- a day's wage typed for MANJULA on 20 Jul while "
+                       "the muster records her absent; the whole 5,800 vs "
+                       "5,400 gap is this one cell",
+    ("Sheet3", "P44"): "hand-adjusted SUM start row for a labour who joined "
+                       "late; the app emits one consistent range per column",
+    ("Sheet3", "Q44"): "hand-adjusted SUM start row for a labour who joined "
+                       "late; the app emits one consistent range per column",
+    ("Sheet3", "R44"): "hand-adjusted SUM start row for a labour who joined "
+                       "late; the app emits one consistent range per column",
+    ("Sheet3", "S44"): "hand-adjusted SUM start row for a labour who joined "
+                       "late; the app emits one consistent range per column",
+    ("Sheet14", "L5"): "per-day SUM stops at column I, omitting BIRU and "
+                       "VIKRAM; the app sums the whole roster",
+    ("Sheet14", "L6"): "per-day SUM stops at column I, omitting BIRU and "
+                       "VIKRAM; the app sums the whole roster",
+    ("Sheet14", "L7"): "per-day SUM stops at column I, omitting BIRU and "
+                       "VIKRAM; the app sums the whole roster",
+    ("Sheet14", "L8"): "per-day SUM stops at column I, omitting BIRU and "
+                       "VIKRAM; the app sums the whole roster",
+    ("Sheet15", "F15"): "A06 -- MANJULA's advance is 6,000 in the advance "
+                        "register and 5,400 here; the register is the source",
+    ("Sheet15", "F18"): "A07 -- IYAPPAN has no advance entries at all, yet "
+                        "12,000 is recorded as paid",
+    ("Sheet15", "F19"): "A07b -- M.DIRECTOR has no advance column, yet 75,000 "
+                        "is recorded as paid",
     ("Sheet9", "E18"): "A01 -- total row records 0 sold against 100 in the ledger",
     ("Sheet9", "F18"): "A01 -- closing overstated by 100 units",
     ("Sheet1", "J38"): "A10 -- formula reaches back one row too far",
 }
+
+# Sheet15's S.No is hand-typed: it repeats 7 for UGAN and so runs one short of
+# the roster it numbers. The app numbers the rows it actually lays out.
+WHITELIST.update({
+    ("Sheet15", f"A{row}"): "hand-typed S.No repeats 7 for UGAN and runs one "
+                            "short; the app numbers the roster sequentially"
+    for row in range(12, 20)
+})
 
 #: Sheets whose export is a master rather than a transaction replay. Their rows
 #: are compared as a set of records, because the app deliberately collapses

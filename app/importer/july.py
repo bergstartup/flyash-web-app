@@ -244,6 +244,7 @@ class JulyImporter:
         self._record_sheet_order("Sheet2", self.wb["Sheet2"], 2, range(2, 17))
         self._record_sheet_order("Sheet3", s3, 4, range(2, 26, 2))
         self._record_sheet_order("Sheet4", self.wb["Sheet4"], 2, range(2, 17))
+        self._record_sheet_order("Sheet14", self.wb["Sheet14"], 2, range(3, 12))
         ws15 = self.wb["Sheet15"]
         for pos, r in enumerate(range(4, 20)):
             nm = S.text(ws15.cell(r, 2).value)

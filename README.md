@@ -73,6 +73,7 @@ expectation both key off them. Where the register's own formulas are
 inconsistent by hand, the app emits correct consistent ones and the diff
 harness whitelists the difference with a reason (`app/excel/diff.py`).
 
-Writers implemented: **Sheet2, Sheet13**. The other 18 are reported as
+Writers implemented: **Sheet2, Sheet3, Sheet4, Sheet13, Sheet14, Sheet15** --
+the whole labour block plus the customer master. The other 14 are reported as
 `NOT IMPLEMENTED` by the diff harness rather than silently passing, and land
-in Phases 1–6.
+in Phases 2–6.
