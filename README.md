@@ -73,7 +73,15 @@ expectation both key off them. Where the register's own formulas are
 inconsistent by hand, the app emits correct consistent ones and the diff
 harness whitelists the difference with a reason (`app/excel/diff.py`).
 
-Writers implemented: **Sheet2, Sheet3, Sheet4, Sheet13, Sheet14, Sheet15** --
-the whole labour block plus the customer master. The other 14 are reported as
-`NOT IMPLEMENTED` by the diff harness rather than silently passing, and land
-in Phases 2–6.
+Writers implemented: **Sheet2, Sheet3, Sheet4, Sheet5, Sheet8, Sheet9,
+Sheet13, Sheet14, Sheet15** -- the labour block, the three stock ledgers and
+the customer master. The other 11 are reported as `NOT IMPLEMENTED` by the
+diff harness rather than silently passing, and land in Phases 2–6.
+
+The three stock ledgers are compared as a *sequence* of movements rather than
+address by address, because the two sides legitimately post different numbers
+of rows: a day's two production shifts are one entry here by decision, and
+anomaly A02 is a sale Sheet6 records that Sheet8 never posted. Either shifts
+every row below it. Rows are aligned on what moved, then compared cell by
+cell, so a structural divergence costs one reported difference and not the
+rest of the sheet.

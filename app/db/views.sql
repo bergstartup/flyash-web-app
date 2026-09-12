@@ -4,7 +4,7 @@
 
 DROP VIEW IF EXISTS stock_movement;
 CREATE VIEW stock_movement AS
-    -- Sales first, in entry order within the day ...
+    -- Sales in entry order within the day ...
     SELECT
         l.product_id                       AS product_id,
         s.sale_date                        AS d,
@@ -22,9 +22,10 @@ CREATE VIEW stock_movement AS
     FROM sale s
     JOIN sale_line l ON l.sale_id = s.id
     UNION ALL
-    -- ... then the day's production row, posted last (kind = 1).
+    -- ... then the day's production, at the point in the day it was posted:
+    -- after the sale whose seq_no it carries, or last when it carries none.
     SELECT
-        p.product_id, p.prod_date, 1, 0, 0,
+        p.product_id, p.prod_date, 1, COALESCE(p.after_seq, 1000000), 0,
         p.qty, 0.0, 'PRODUCTION', NULL, NULL, p.id, NULL, NULL
     FROM production p;
 
@@ -58,7 +59,7 @@ LEFT JOIN stock_opening o
       AND o.as_on = date(m.d, 'start of month')
 WINDOW w AS (
     PARTITION BY m.product_id, date(m.d, 'start of month')
-    ORDER BY m.d, m.kind, m.seq, m.line_no
+    ORDER BY m.d, m.seq, m.kind, m.line_no
     ROWS UNBOUNDED PRECEDING
 );
 

@@ -281,7 +281,38 @@ class StockOpening(Base):
     qty: Mapped[float] = mapped_column(Float)
 
 
+class StockMonthHistory(Base):
+    """Months that closed before the app existed (Sheet16, Jan 2024 onward).
+
+    The guiding rule bans stored balances for anything the app can derive, and
+    this does not breach it: there are no movements behind these months to
+    derive from, so the roll-up is imported history in the same sense as
+    ``stock_opening``. Any month the app owns is derived and wins over a row
+    here.
+    """
+
+    __tablename__ = "stock_month_history"
+    __table_args__ = (
+        UniqueConstraint("product_id", "period_year", "period_month"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
+    period_year: Mapped[int] = mapped_column(Integer)
+    period_month: Mapped[int] = mapped_column(Integer)
+    opening: Mapped[float] = mapped_column(Float)
+    production: Mapped[float] = mapped_column(Float)
+    sales: Mapped[float] = mapped_column(Float)
+    closing: Mapped[float] = mapped_column(Float)
+
+
 class Production(Base):
+    """One entry per product per day -- validation rule 5.
+
+    The register splits some days into a DUTY and an AFTER 5 PM shift; those
+    are summed here, by decision, so the daily figure stays the unit of entry.
+    """
+
     __tablename__ = "production"
     __table_args__ = (UniqueConstraint("prod_date", "product_id"),)
 
@@ -289,6 +320,11 @@ class Production(Base):
     prod_date: Mapped[dt.date] = mapped_column(Date, index=True)
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
     qty: Mapped[float] = mapped_column(Float)
+    # Where the day's production falls among that day's sales: the seq_no of
+    # the sale it was posted after, 0 before any of them. The running balance
+    # depends on it -- bricks come off the press during the day, not after it.
+    # NULL means "posted last", which is what a new entry defaults to.
+    after_seq: Mapped[int | None] = mapped_column(Integer)
     remarks: Mapped[str | None] = mapped_column(Text)
 
 

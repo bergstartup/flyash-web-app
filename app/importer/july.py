@@ -18,15 +18,19 @@ file.
 
 from __future__ import annotations
 
+import calendar
 import datetime as dt
 import re
 from dataclasses import dataclass, field
 
+from sqlalchemy import text as sa_text
 from sqlalchemy.orm import Session
 
 from app.db import models as m
 from app.importer import source as S
 from app.importer.names import norm, resolve
+
+MONTHS = [calendar.month_name[i].upper() for i in range(1, 13)]
 
 FAB = "FLY ASH BRICKS"
 SOLID4 = '4" SOLID'
@@ -93,6 +97,7 @@ class JulyImporter:
         self.import_sales()
         self.import_production_and_openings()
         self.import_damages()
+        self.import_stock_history()
         self.import_deliveries()
         self.import_materials()
         self.import_cement()
@@ -527,11 +532,12 @@ class JulyImporter:
 
     def import_production_and_openings(self) -> None:
         specs = [
-            ("Sheet5", FAB, 5, 187, 3, 4),      # opening col C, prodn col D
-            ("Sheet8", SOLID4, 5, 35, 2, 3),    # opening col B, prodn col C
-            ("Sheet9", SOLID6, 5, 17, 2, 3),
+            # sheet, product, rows, opening col, production col, sales col
+            ("Sheet5", FAB, 5, 187, 3, 4, 6),
+            ("Sheet8", SOLID4, 5, 35, 2, 3, 5),
+            ("Sheet9", SOLID6, 5, 17, 2, 3, 5),
         ]
-        for sheet, pname, first, last, open_col, prod_col in specs:
+        for sheet, pname, first, last, open_col, prod_col, sale_col in specs:
             ws = self.wb[sheet]
             prod = self._product(pname)
             opening = S.num(ws.cell(first, open_col).value) or 0.0
@@ -540,16 +546,48 @@ class JulyImporter:
             self.stats.add("stock_opening")
             carry = None
             by_day: dict[dt.date, float] = {}
+            # How many of the day's sales the register had already posted when
+            # production went in. Days split into a DUTY and an AFTER 5 PM
+            # shift are summed -- one entry per product per day, rule 5 -- and
+            # take the position of the first of the two.
+            after: dict[dt.date, int] = {}
+            sales_so_far: dict[dt.date, int] = {}
             for r in range(first, last + 1):
                 carry = S.date_column(ws, r, 1, carry)
+                if carry is None:
+                    continue
+                if S.num(ws.cell(r, sale_col).value):
+                    sales_so_far[carry] = sales_so_far.get(carry, 0) + 1
                 qty = S.num(ws.cell(r, prod_col).value)
-                if carry is None or not qty:
+                if not qty:
                     continue
                 by_day[carry] = by_day.get(carry, 0.0) + qty
+                after.setdefault(carry, sales_so_far.get(carry, 0))
             for d, qty in by_day.items():
-                self.db.add(m.Production(prod_date=d, product_id=prod.id, qty=qty))
+                self.db.add(m.Production(
+                    prod_date=d, product_id=prod.id, qty=qty,
+                    after_seq=self._sale_seq_after(prod.id, d, after[d])))
                 self.stats.add("production")
         self.db.flush()
+
+    def _sale_seq_after(self, product_id: int, day: dt.date,
+                        sales_before: int) -> int | None:
+        """The seq_no of the sale that production was posted after.
+
+        The ledger sheets number a day's rows per product, while a sale carries
+        Sheet6's own S.No across every product, so the position has to be
+        resolved through the sales actually recorded for that day.
+        """
+        if not sales_before:
+            return 0
+        seqs = [row[0] for row in self.db.execute(sa_text("""
+            SELECT DISTINCT s.seq_no FROM sale s
+            JOIN sale_line l ON l.sale_id = s.id
+            WHERE l.product_id = :p AND s.sale_date = :d
+            ORDER BY s.seq_no"""), {"p": product_id, "d": day.isoformat()}).all()]
+        if sales_before >= len(seqs):
+            return None                        # posted after the day's last sale
+        return seqs[sales_before - 1]
 
     # -- Sheets 8, 9: damages -------------------------------------------
 
@@ -570,9 +608,11 @@ class JulyImporter:
                 seq = 9000
                 while (carry, seq) in self.sale_by_key:
                     seq += 1
+                booked_to = S.text(ws.cell(r, veh_col + 1).value)
                 sale = m.Sale(sale_date=carry, seq_no=seq, movement_type="DAMAGE",
+                              destination=booked_to,
                               remarks=f"{sheet}: recorded as a sale to "
-                                      f"{S.text(ws.cell(r, veh_col + 1).value)}")
+                                      f"{booked_to}")
                 self.db.add(sale)
                 self.db.flush()
                 self.sale_by_key[(carry, seq)] = sale
@@ -580,6 +620,42 @@ class JulyImporter:
                                        product_id=prod.id, qty=qty,
                                        rate=None, amount=0.0))
                 self.stats.add("damage")
+        self.db.flush()
+
+    # -- Sheet16: the months that closed before the app existed -----------
+
+    def import_stock_history(self) -> None:
+        """Sheet16's 30-month roll-up, minus any month the app can derive.
+
+        The sheet carries financial-year subtotal rows with no month or year
+        against them; those are skipped, because the writer recomputes them.
+        """
+        ws = self.wb["Sheet16"]
+        prod = self._product(FAB)
+        derived = set()
+        for (start,) in self.db.execute(sa_text(
+                "SELECT DISTINCT period_start FROM stock_month_summary "
+                "WHERE product_id = :p"), {"p": prod.id}).all():
+            owned = dt.date.fromisoformat(str(start)[:10])
+            derived.add((owned.year, owned.month))
+        for r in range(4, 41):
+            month = S.text(ws.cell(r, 2).value)
+            year = S.num(ws.cell(r, 3).value)
+            if not month or year is None:
+                continue                       # a subtotal row
+            try:
+                number = MONTHS.index(month.strip().upper()) + 1
+            except ValueError:
+                continue
+            if (int(year), number) in derived:
+                continue                       # the app owns this month
+            self.db.add(m.StockMonthHistory(
+                product_id=prod.id, period_year=int(year), period_month=number,
+                opening=S.num(ws.cell(r, 4).value) or 0.0,
+                production=S.num(ws.cell(r, 5).value) or 0.0,
+                sales=S.num(ws.cell(r, 7).value) or 0.0,
+                closing=S.num(ws.cell(r, 8).value) or 0.0))
+            self.stats.add("stock_month_history")
         self.db.flush()
 
     # -- Sheet7: delivery notes ------------------------------------------
