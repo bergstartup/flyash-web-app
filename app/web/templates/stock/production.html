@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Production - {{ day }}{% endblock %}
+{% block body %}
+<h1>Production</h1>
+<p class="sub">One entry per product per day. A day the plant ran two shifts is
+   one figure here - the register split it into DUTY and AFTER 5 PM, and the
+   day's closing stock is the same either way. Leave a box blank for nothing
+   made.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<form class="toolbar" method="get" action="/production">
+  <input type="date" name="date" value="{{ day }}" onchange="this.form.submit()">
+  <span style="color:var(--muted);font-size:.85rem">{{ day.strftime('%A') }}</span>
+</form>
+
+<form method="post" action="/production">
+  <input type="hidden" name="date" value="{{ day }}">
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Product</th><th>Ledger</th><th class="num">Made today</th></tr></thead>
+    <tbody>
+    {% for p in products %}
+      <tr>
+        <td class="key rowname">{{ p.name }}<small>{{ p.code }}</small></td>
+        <td>{{ p.ledger_sheet or '--' }}</td>
+        <td class="num">
+          <input type="number" step="1" min="0" style="width:8rem"
+                 name="qty_{{ p.id }}" value="{{ entered.get(p.id, '') }}">
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <button type="submit">Save production</button>
+</form>
+{% endblock %}

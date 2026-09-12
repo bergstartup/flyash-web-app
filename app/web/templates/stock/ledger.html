@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Stock ledger - SMCP Kallakudi{% endblock %}
+{% block body %}
+<h1>Stock ledger</h1>
+<p class="sub">Opening, total and balance are computed from the movements
+   below. Production posts at the point in the day it happened, which is what
+   the balance beside it depends on.</p>
+
+<form class="toolbar" method="get" action="/stock">
+  <select name="product_id" onchange="this.form.submit()">
+    {% for p in products %}
+    <option value="{{ p.id }}" {{ 'selected' if p.id == product_id }}>{{ p.name }}</option>
+    {% endfor %}
+  </select>
+  <input type="number" name="year" value="{{ year }}" style="width:6rem">
+  <input type="number" name="month" value="{{ month }}" min="1" max="12" style="width:5rem">
+  <button type="submit">Show</button>
+</form>
+
+{% if summary %}
+<dl class="cards">
+  <div class="card"><dt>Opening</dt><dd>{{ '{:,.0f}'.format(summary[0]) }}</dd></div>
+  <div class="card"><dt>Production</dt><dd>{{ '{:,.0f}'.format(summary[1]) }}</dd></div>
+  <div class="card"><dt>Total</dt><dd>{{ '{:,.0f}'.format(summary[2]) }}</dd></div>
+  <div class="card"><dt>Sales</dt><dd>{{ '{:,.0f}'.format(summary[3]) }}</dd></div>
+  <div class="card"><dt>Closing</dt><dd>{{ '{:,.0f}'.format(summary[4]) }}</dd></div>
+</dl>
+{% endif %}
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Date</th><th>#</th><th>Movement</th><th>Vehicle</th>
+    <th>Consumer</th><th class="num">Opening</th><th class="num">Produced</th>
+    <th class="num">Issued</th><th class="num">Balance</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="key">{{ r[0] }}</td>
+      <td>{{ r[2] if r[1] == 0 else '' }}</td>
+      <td>{{ r[3] }}</td>
+      <td>{{ r[4] or '--' }}</td>
+      <td>{{ r[5] or '--' }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r[6]) }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r[7]) if r[7] else '--' }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r[8]) if r[8] else '--' }}</td>
+      <td class="num">{{ '{:,.0f}'.format(r[9]) }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="9" style="color:var(--muted)">No movements this month.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

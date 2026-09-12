@@ -4,8 +4,18 @@ Replaces the monthly Excel workbook (`JULY.xlsx`, 20 sheets, 1,373 hand-kept
 formulas) with a SQLite database that derives every balance, and regenerates
 the workbook as a report.
 
-**Phase 0 is complete.** See `docs/` — the build plan artifact — for the seven
-phases and the fifteen schema decisions.
+**Phases 0, 1 and 2 are complete.** See [`idea.md`](idea.md) for the build
+plan — the phases, the sheet-by-sheet analysis and the schema decisions.
+
+| Phase | Scope | State |
+|---|---|---|
+| 0 | Schema, views, July import, anomaly detector, export harness | done |
+| 1 | Labour: masters, attendance, extra work, advances, salary | done |
+| 2 | Products, production, sales, stock ledgers, monthly roll-up | done |
+| 3 | Customers, deliveries, receivables (Sheets 7, 17, 18) | next |
+| 4 | Raw materials, cement lots (Sheets 10, 12) | |
+| 5 | Power, digital ledger (Sheets 1, 19) | |
+| 6 | Pallets, bike mileage (Sheets 11, 20) | |
 
 ## Guiding rule
 
@@ -56,6 +66,7 @@ Suggested crontab on the plant box:
 | `app/db/models.py` | 33 tables. No derived columns. |
 | `app/db/views.sql` | Every derivation. Rebuilt after each migration. |
 | `app/services/` | Write paths — one module per entry screen. |
+| `app/web/routers/` | Screens: `labour.py` for Phase 1, `stock.py` for Phase 2. |
 | `app/reports/` | Read paths — one function per sheet, shared by the screens and the Excel writers. |
 | `app/excel/` | Template, toolkit, per-sheet writers, diff harness. |
 | `app/importer/` | One-time July migration and the anomaly detector. |

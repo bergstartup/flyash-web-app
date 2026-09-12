@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Products - SMCP Kallakudi{% endblock %}
+{% block body %}
+<h1>Products</h1>
+<p class="sub">Fifteen products sell; three keep a stock ledger. The rate here
+   is only what the sale screen offers - a sale records what it actually
+   charged, so changing this never rewrites a sale already entered.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Code</th><th>Product</th><th>Unit</th><th>Ledger</th>
+    <th class="num">Rate</th><th class="num">Times sold</th><th></th></tr></thead>
+  <tbody>
+  {% for p in products %}
+    <tr>
+      <td class="key">{{ p.code }}</td>
+      <td class="rowname">{{ p.name }}
+        {% if not p.is_active %}<small>inactive</small>{% endif %}</td>
+      <td>{{ p.unit }}</td>
+      <td>{{ p.ledger_sheet or '--' }}</td>
+      <td class="num">
+        <form method="post" action="/products/{{ p.id }}/rate" class="inline">
+          <input type="number" step="0.01" name="rate" value="{{ p.default_rate or '' }}"
+                 style="width:6rem" placeholder="--">
+          <button type="submit">Set</button>
+        </form>
+      </td>
+      <td class="num">{{ sold[p.id] }}</td>
+      <td>
+        {% if p.is_active %}
+        <form method="post" action="/products/{{ p.id }}/deactivate" class="inline">
+          <button type="submit">Deactivate</button></form>
+        {% else %}
+        <form method="post" action="/products/{{ p.id }}/reactivate" class="inline">
+          <button type="submit">Reactivate</button></form>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Add a product</h2>
+<form method="post" action="/products" class="toolbar">
+  <input name="code" placeholder="Code" required>
+  <input name="name" placeholder="Name" required>
+  <input name="unit" value="NOS" style="width:5rem">
+  <input type="number" step="0.01" name="default_rate" placeholder="Rate" style="width:7rem">
+  <select name="ledger_sheet">
+    <option value="">No stock ledger</option>
+    {% for s in ledger_sheets %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+  </select>
+  <button type="submit">Add</button>
+</form>
+{% endblock %}

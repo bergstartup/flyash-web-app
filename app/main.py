@@ -22,6 +22,7 @@ from app.reports.period import latest_period
 from app.reports.reconciliation import measure
 from app.web.actor import current_actor, set_actor
 from app.web.routers.labour import router as labour_router
+from app.web.routers.stock import router as stock_router
 
 WEB = Path(__file__).parent / "web"
 
@@ -29,6 +30,7 @@ app = FastAPI(title="SMCP Kallakudi")
 app.mount("/static", StaticFiles(directory=WEB / "static"), name="static")
 templates = Jinja2Templates(directory=str(WEB / "templates"))
 app.include_router(labour_router)
+app.include_router(stock_router)
 
 
 def db_session():
