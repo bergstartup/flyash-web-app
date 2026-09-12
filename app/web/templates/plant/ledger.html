@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Digital ledger{% endblock %}
+{% block body %}
+<h1>Digital ledger</h1>
+<p class="sub">Bank and UPI, in and out. Most of it posts itself - a labour
+   advance paid digitally writes its own line here, which is the triple-keying
+   across Sheet4, Sheet15 and Sheet19 the app removes. Only a line with no
+   other record behind it is entered by hand.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+{% if summary %}
+<dl class="cards">
+  <div class="card"><dt>Opening</dt><dd>Rs {{ '{:,.0f}'.format(summary[0]) }}</dd></div>
+  <div class="card"><dt>In</dt><dd>Rs {{ '{:,.0f}'.format(summary[1]) }}</dd></div>
+  <div class="card"><dt>Out</dt><dd>Rs {{ '{:,.0f}'.format(summary[2]) }}</dd></div>
+  <div class="card"><dt>Closing</dt><dd>Rs {{ '{:,.0f}'.format(summary[3]) }}</dd></div>
+</dl>
+{% endif %}
+
+<form class="toolbar" method="get" action="/ledger">
+  <input type="number" name="year" value="{{ year }}" style="width:6rem">
+  <input type="number" name="month" value="{{ month }}" min="1" max="12" style="width:5rem">
+  <button type="submit">Show</button>
+</form>
+
+<form class="toolbar" method="post" action="/ledger">
+  <input type="date" name="txn_date" required>
+  <select name="direction">
+    {% for d in directions %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+  </select>
+  <input type="number" step="0.01" name="amount" placeholder="Amount" required style="width:8rem">
+  <input name="description" placeholder="What it was" style="width:20rem">
+  <button type="submit">Post</button>
+</form>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>Date</th><th>Direction</th><th>Source</th><th>Description</th>
+    <th class="num">Amount</th><th></th></tr></thead>
+  <tbody>
+  {% for e in entries %}
+    <tr>
+      <td class="key">{{ e.txn_date }}</td>
+      <td>{{ e.direction }}</td>
+      <td>{{ e.entry_type }}</td>
+      <td>{{ e.description or '--' }}</td>
+      <td class="num">{{ '{:,.0f}'.format(e.amount) }}</td>
+      <td>
+        {% if e.entry_type == 'MANUAL' %}
+        <form method="post" action="/ledger/{{ e.id }}/delete" class="inline">
+          <input type="hidden" name="year" value="{{ year }}">
+          <input type="hidden" name="month" value="{{ month }}">
+          <button type="submit">Delete</button></form>
+        {% else %}<span style="color:var(--muted)">posted itself</span>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}
