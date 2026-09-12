@@ -26,10 +26,19 @@ header{background:var(--surface);border-bottom:1px solid var(--line);
 .brand{font-weight:700;letter-spacing:-.01em}
 .brand small{display:block;font-weight:400;font-size:.72rem;color:var(--muted);
              letter-spacing:.1em;text-transform:uppercase}
-nav{display:flex;gap:1rem;flex-wrap:wrap}
-nav a{color:var(--ink-2);text-decoration:none;font-size:.92rem;padding:.25rem 0;
-      border-bottom:2px solid transparent}
-nav a:hover,nav a.on{color:var(--accent);border-bottom-color:var(--accent)}
+nav.groups{display:flex;gap:1.25rem;flex-wrap:wrap}
+nav.groups a{color:var(--ink-2);text-decoration:none;font-size:.92rem;
+      font-weight:600;padding:.25rem 0;border-bottom:2px solid transparent}
+nav.groups a:hover,nav.groups a.on{color:var(--accent);
+      border-bottom-color:var(--accent)}
+/* The screens of whichever group is open. A second row rather than a menu:
+   nothing to click twice, and it works with the keyboard and without JS. */
+nav.pages{background:var(--surface);border-bottom:1px solid var(--line);
+      padding:.5rem 1.25rem;display:flex;gap:1rem;flex-wrap:wrap}
+nav.pages a{color:var(--muted);text-decoration:none;font-size:.85rem;
+      padding:.15rem .5rem;border-radius:3px}
+nav.pages a:hover{color:var(--ink)}
+nav.pages a.on{color:var(--accent);background:var(--accent-soft);font-weight:600}
 .actor{display:flex;align-items:center;gap:.5rem;font-size:.82rem;color:var(--muted)}
 .actor select{font:inherit;font-size:.82rem;padding:.25rem .4rem;
               border:1px solid var(--line);border-radius:3px;
@@ -66,6 +75,8 @@ td.key{color:var(--ink);font-weight:600;white-space:nowrap}
 h2{font-size:1.05rem;margin:0 0 .5rem;letter-spacing:-.01em}
 h2 + p{margin:0 0 .75rem;color:var(--muted);font-size:.88rem;max-width:70ch}
 .error{background:var(--brick-soft);color:var(--brick);border:1px solid var(--brick);
+       border-radius:4px;padding:.6rem .9rem;font-size:.88rem;margin-bottom:1.25rem}
+.notice{background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber);
        border-radius:4px;padding:.6rem .9rem;font-size:.88rem;margin-bottom:1.25rem}
 .toolbar{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin-bottom:1.25rem}
 .toolbar input[type=date],.toolbar select{font:inherit;font-size:.88rem;
@@ -105,26 +116,10 @@ button.small{padding:.2rem .5rem;font-size:.76rem}
 <body>
 <header>
   <div class="brand">SMCP Kallakudi<small>Fly ash plant register</small></div>
-  <nav>
-    <a href="/" class="{{ 'on' if page == 'dashboard' }}">Dashboard</a>
-    <a href="/reconciliation" class="{{ 'on' if page == 'reconciliation' }}">Reconciliation</a>
-    <a href="/anomalies" class="{{ 'on' if page == 'anomalies' }}">Error register</a>
-    <span style="color:var(--line)">|</span>
-    <a href="/attendance" class="{{ 'on' if page == 'attendance' }}">Attendance</a>
-    <a href="/extra-work" class="{{ 'on' if page == 'extra-work' }}">Extra work</a>
-    <a href="/advances" class="{{ 'on' if page == 'advances' }}">Advances</a>
-    <a href="/salary" class="{{ 'on' if page == 'salary' }}">Salary</a>
-    <a href="/labour" class="{{ 'on' if page == 'labour' }}">Labour</a>
-    <span style="color:var(--line)">|</span>
-    <a href="/sales" class="{{ 'on' if page == 'sales' }}">Sales</a>
-    <a href="/production" class="{{ 'on' if page == 'production' }}">Production</a>
-    <a href="/stock" class="{{ 'on' if page == 'stock' }}">Stock</a>
-    <a href="/products" class="{{ 'on' if page == 'products' }}">Products</a>
-    <span style="color:var(--line)">|</span>
-    <a href="/materials" class="{{ 'on' if page == 'materials' }}">Materials</a>
-    <a href="/consumption" class="{{ 'on' if page == 'consumption' }}">Consumption</a>
-    <a href="/power" class="{{ 'on' if page == 'power' }}">Power</a>
-    <a href="/ledger" class="{{ 'on' if page == 'ledger' }}">Ledger</a>
+  <nav class="groups">
+    {% for group in nav_groups %}
+    <a href="{{ group.href }}"{% if group is sameas nav_active %} class="on"{% endif %}>{{ group.label }}</a>
+    {% endfor %}
   </nav>
   <form class="actor" method="post" action="/actor">
     <label for="actor">Entering as</label>
@@ -136,6 +131,11 @@ button.small{padding:.2rem .5rem;font-size:.76rem}
     <noscript><button type="submit">Set</button></noscript>
   </form>
 </header>
+<nav class="pages">
+  {% for item in nav_active.items %}
+  <a href="{{ item.href }}"{% if item.page == page %} class="on"{% endif %}>{{ item.label }}</a>
+  {% endfor %}
+</nav>
 <main>{% block body %}{% endblock %}</main>
 </body>
 </html>

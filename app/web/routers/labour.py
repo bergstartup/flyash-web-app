@@ -8,9 +8,7 @@ import datetime as dt
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 
-from app.db.session import SessionLocal
 from app.reports import labour as reports
 from app.services import advance as advance_svc
 from app.services import attendance as attendance_svc
@@ -21,30 +19,9 @@ from app.reports.period import latest_period
 from app.services import salary as salary_svc
 from app.services.period import PeriodLocked
 from app.web.actor import current_actor
+from app.web.render import db_session, page, parse_date, redirect_with_error
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/web/templates")
-
-
-def db_session():
-    with SessionLocal() as session:
-        yield session
-
-
-def page(request: Request, name: str, **context):
-    from app.config import ACTORS
-    return templates.TemplateResponse(request, name, {
-        "actor": current_actor(request), "actors": ACTORS, **context})
-
-
-def _parse_date(value: str | None) -> dt.date:
-    return dt.date.fromisoformat(value) if value else dt.date.today()
-
-
-def _redirect_with_error(url: str, exc: Exception) -> RedirectResponse:
-    from urllib.parse import quote
-    sep = "&" if "?" in url else "?"
-    return RedirectResponse(f"{url}{sep}error={quote(str(exc))}", status_code=303)
 
 
 # -- Labour master ------------------------------------------------------------
@@ -67,7 +44,7 @@ def labour_create(request: Request, name: str = Form(...),
             rate=rate, phone=phone or None, aadhar_last4=aadhar_last4 or None,
             join_date=dt.date.fromisoformat(join_date) if join_date else None)
     except ValueError as exc:
-        return _redirect_with_error("/labour", exc)
+        return redirect_with_error("/labour", exc)
     return RedirectResponse("/labour", status_code=303)
 
 
@@ -89,7 +66,7 @@ def labour_reactivate(request: Request, labour_id: int, db=Depends(db_session)):
 def ewt_list(request: Request, db=Depends(db_session)):
     types = ewt_svc.list_types(db, include_inactive=True)
     rates = {t.id: ewt_svc.current_rate(db, t.id) for t in types}
-    return page(request, "labour/extra_work_types.html", page="labour",
+    return page(request, "labour/extra_work_types.html", page="extra-work-types",
                 types=types, rates=rates,
                 error=request.query_params.get("error"))
 
@@ -102,7 +79,7 @@ def ewt_create(request: Request, code: str = Form(...), name: str = Form(...),
         ewt_svc.create(db, current_actor(request), code=code, name=name,
                        unit=unit or None, rate=rate)
     except ValueError as exc:
-        return _redirect_with_error("/extra-work-types", exc)
+        return redirect_with_error("/extra-work-types", exc)
     return RedirectResponse("/extra-work-types", status_code=303)
 
 
@@ -113,7 +90,7 @@ def ewt_set_rate(request: Request, type_id: int, rate: float = Form(...),
         ewt_svc.set_rate(db, current_actor(request), type_id, rate,
                          dt.date.fromisoformat(effective_from))
     except ValueError as exc:
-        return _redirect_with_error("/extra-work-types", exc)
+        return redirect_with_error("/extra-work-types", exc)
     return RedirectResponse("/extra-work-types", status_code=303)
 
 
@@ -121,7 +98,7 @@ def ewt_set_rate(request: Request, type_id: int, rate: float = Form(...),
 
 @router.get("/attendance")
 def attendance_form(request: Request, date: str = "", db=Depends(db_session)):
-    day = _parse_date(date)
+    day = parse_date(date)
     roster = attendance_svc.roster_for_day(db, day)
     return page(request, "labour/attendance.html", page="attendance",
                 day=day, roster=roster, shift_values=attendance_svc.SHIFT_VALUES,
@@ -131,7 +108,7 @@ def attendance_form(request: Request, date: str = "", db=Depends(db_session)):
 @router.post("/attendance")
 async def attendance_save(request: Request, db=Depends(db_session)):
     form = await request.form()
-    day = _parse_date(form.get("date"))
+    day = parse_date(form.get("date"))
     entries: dict[int, float] = {}
     for key, value in form.items():
         if key.startswith("shift_") and value != "":
@@ -140,7 +117,7 @@ async def attendance_save(request: Request, db=Depends(db_session)):
     try:
         attendance_svc.save_day(db, current_actor(request), day, entries)
     except ValueError as exc:
-        return _redirect_with_error(f"/attendance?date={day.isoformat()}", exc)
+        return redirect_with_error(f"/attendance?date={day.isoformat()}", exc)
     return RedirectResponse(f"/attendance?date={day.isoformat()}", status_code=303)
 
 
@@ -148,7 +125,7 @@ async def attendance_save(request: Request, db=Depends(db_session)):
 
 @router.get("/extra-work")
 def extra_work_form(request: Request, date: str = "", db=Depends(db_session)):
-    day = _parse_date(date)
+    day = parse_date(date)
     return page(request, "labour/extra_work.html", page="extra-work", day=day,
                 labour=labour_svc.list_labour(db),
                 types=ewt_svc.list_types(db),
@@ -161,13 +138,13 @@ def extra_work_add(request: Request, date: str = Form(...),
                    labour_id: int = Form(...), work_type_id: int = Form(...),
                    qty: float = Form(...), remarks: str = Form(""),
                    db=Depends(db_session)):
-    day = _parse_date(date)
+    day = parse_date(date)
     try:
         extra_work_svc.add(db, current_actor(request), work_date=day,
                            labour_id=labour_id, work_type_id=work_type_id,
                            qty=qty, remarks=remarks or None)
     except (ValueError, PeriodLocked) as exc:
-        return _redirect_with_error(f"/extra-work?date={day.isoformat()}", exc)
+        return redirect_with_error(f"/extra-work?date={day.isoformat()}", exc)
     return RedirectResponse(f"/extra-work?date={day.isoformat()}", status_code=303)
 
 
@@ -192,7 +169,7 @@ def extra_work_adjustments(request: Request, year: int = 0, month: int = 0,
 
 @router.get("/advances")
 def advances_form(request: Request, date: str = "", db=Depends(db_session)):
-    day = _parse_date(date)
+    day = parse_date(date)
     return page(request, "labour/advances.html", page="advances", day=day,
                 labour=labour_svc.list_labour(db),
                 entries=reports.advances_for_day(db, day),
@@ -204,14 +181,14 @@ def advances_add(request: Request, date: str = Form(...),
                  labour_id: int = Form(...), amount: float = Form(...),
                  payment_mode: str = Form(""), paid_to: str = Form(""),
                  remarks: str = Form(""), db=Depends(db_session)):
-    day = _parse_date(date)
+    day = parse_date(date)
     try:
         advance_svc.add(db, current_actor(request), adv_date=day,
                         labour_id=labour_id, amount=amount,
                         payment_mode=payment_mode or None,
                         paid_to=paid_to or None, remarks=remarks or None)
     except (ValueError, PeriodLocked) as exc:
-        return _redirect_with_error(f"/advances?date={day.isoformat()}", exc)
+        return redirect_with_error(f"/advances?date={day.isoformat()}", exc)
     return RedirectResponse(f"/advances?date={day.isoformat()}", status_code=303)
 
 

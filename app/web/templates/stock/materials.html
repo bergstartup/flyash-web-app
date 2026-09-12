@@ -8,7 +8,7 @@
 
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
 {% if low %}
-<div class="warn">
+<div class="notice">
   {% for name, level, on_hand in low %}
   {{ name }} is down to {{ '{:,.1f}'.format(on_hand) }} against a reorder level
   of {{ '{:,.1f}'.format(level) }}.

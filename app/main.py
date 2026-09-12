@@ -12,15 +12,14 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 
-from app.config import ACTORS
 from app.db.models import ImportAnomaly
-from app.db.session import SessionLocal, engine
+from app.db.session import engine
 from app.reports.period import latest_period
 from app.reports.reconciliation import measure
-from app.web.actor import current_actor, set_actor
+from app.web.actor import set_actor
+from app.web.render import db_session, page
 from app.web.routers.labour import router as labour_router
 from app.web.routers.plant import router as plant_router
 from app.web.routers.stock import router as stock_router
@@ -29,20 +28,9 @@ WEB = Path(__file__).parent / "web"
 
 app = FastAPI(title="SMCP Kallakudi")
 app.mount("/static", StaticFiles(directory=WEB / "static"), name="static")
-templates = Jinja2Templates(directory=str(WEB / "templates"))
 app.include_router(labour_router)
 app.include_router(stock_router)
 app.include_router(plant_router)
-
-
-def db_session():
-    with SessionLocal() as session:
-        yield session
-
-
-def page(request: Request, name: str, **context):
-    return templates.TemplateResponse(request, name, {
-        "actor": current_actor(request), "actors": ACTORS, **context})
 
 
 @app.post("/actor")

@@ -8,7 +8,7 @@
    entries.</p>
 
 {% if error %}<div class="error">{{ error }}</div>{% endif %}
-{% if warning %}<div class="warn">{{ warning }}</div>{% endif %}
+{% if warning %}<div class="notice">{{ warning }}</div>{% endif %}
 
 <form class="toolbar" method="get" action="/sales">
   <input type="date" name="date" value="{{ day }}" onchange="this.form.submit()">

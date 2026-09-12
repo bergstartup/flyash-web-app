@@ -14,11 +14,9 @@ import datetime as dt
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import text
 
 from app.db.models import Customer, Vehicle
-from app.db.session import SessionLocal
 from app.reports.period import latest_period
 from app.services import material as material_svc
 from app.services import product as product_svc
@@ -26,30 +24,9 @@ from app.services import production as production_svc
 from app.services import sale as sale_svc
 from app.services.period import PeriodLocked
 from app.web.actor import current_actor
+from app.web.render import db_session, page, parse_date, redirect_with_error
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/web/templates")
-
-
-def db_session():
-    with SessionLocal() as session:
-        yield session
-
-
-def page(request: Request, name: str, **context):
-    from app.config import ACTORS
-    return templates.TemplateResponse(request, name, {
-        "actor": current_actor(request), "actors": ACTORS, **context})
-
-
-def _parse_date(value: str | None) -> dt.date:
-    return dt.date.fromisoformat(value) if value else dt.date.today()
-
-
-def _redirect_with_error(url: str, exc: Exception) -> RedirectResponse:
-    from urllib.parse import quote
-    sep = "&" if "?" in url else "?"
-    return RedirectResponse(f"{url}{sep}error={quote(str(exc))}", status_code=303)
 
 
 # -- Product master ---------------------------------------------------------
@@ -74,7 +51,7 @@ def product_create(request: Request, code: str = Form(...), name: str = Form(...
                            default_rate=float(default_rate) if default_rate else None,
                            ledger_sheet=ledger_sheet or None)
     except ValueError as exc:
-        return _redirect_with_error("/products", exc)
+        return redirect_with_error("/products", exc)
     return RedirectResponse("/products", status_code=303)
 
 
@@ -85,7 +62,7 @@ def product_rate(request: Request, product_id: int, rate: str = Form(""),
         product_svc.set_rate(db, current_actor(request), product_id,
                              float(rate) if rate else None)
     except ValueError as exc:
-        return _redirect_with_error("/products", exc)
+        return redirect_with_error("/products", exc)
     return RedirectResponse("/products", status_code=303)
 
 
@@ -105,7 +82,7 @@ def product_reactivate(request: Request, product_id: int, db=Depends(db_session)
 
 @router.get("/production")
 def production_form(request: Request, date: str = "", db=Depends(db_session)):
-    day = _parse_date(date)
+    day = parse_date(date)
     entered = {p.product_id: p.qty for p in production_svc.for_day(db, day)}
     return page(request, "stock/production.html", page="production", day=day,
                 products=product_svc.listing(db), entered=entered,
@@ -115,14 +92,14 @@ def production_form(request: Request, date: str = "", db=Depends(db_session)):
 @router.post("/production")
 async def production_save(request: Request, db=Depends(db_session)):
     form = await request.form()
-    day = _parse_date(form.get("date"))
+    day = parse_date(form.get("date"))
     quantities = {
         int(key.removeprefix("qty_")): float(value) if value else None
         for key, value in form.items() if key.startswith("qty_")}
     try:
         production_svc.save_day(db, current_actor(request), day, quantities)
     except (ValueError, PeriodLocked) as exc:
-        return _redirect_with_error(f"/production?date={day.isoformat()}", exc)
+        return redirect_with_error(f"/production?date={day.isoformat()}", exc)
     return RedirectResponse(f"/production?date={day.isoformat()}", status_code=303)
 
 
@@ -130,7 +107,7 @@ async def production_save(request: Request, db=Depends(db_session)):
 
 @router.get("/sales")
 def sales_form(request: Request, date: str = "", db=Depends(db_session)):
-    day = _parse_date(date)
+    day = parse_date(date)
     products = product_svc.listing(db)
     return page(request, "stock/sales.html", page="sales", day=day,
                 products=products,
@@ -150,7 +127,7 @@ def sales_form(request: Request, date: str = "", db=Depends(db_session)):
 @router.post("/sales")
 async def sales_create(request: Request, db=Depends(db_session)):
     form = await request.form()
-    day = _parse_date(form.get("date"))
+    day = parse_date(form.get("date"))
     url = f"/sales?date={day.isoformat()}"
     lines = []
     for index in range(1, 6):
@@ -172,7 +149,7 @@ async def sales_create(request: Request, db=Depends(db_session)):
             payment_mode=form.get("payment_mode") or None,
             collected_by=form.get("collected_by") or None)
     except (ValueError, PeriodLocked, sale_svc.StockShortfall) as exc:
-        return _redirect_with_error(url, exc)
+        return redirect_with_error(url, exc)
     if warnings:
         from urllib.parse import quote
         return RedirectResponse(f"{url}&warning={quote(' '.join(warnings))}",
@@ -186,7 +163,7 @@ def sales_delete(request: Request, sale_id: int, date: str = Form(...),
     try:
         sale_svc.delete(db, current_actor(request), sale_id)
     except (sale_svc.HasReceipts, PeriodLocked) as exc:
-        return _redirect_with_error(f"/sales?date={date}", exc)
+        return redirect_with_error(f"/sales?date={date}", exc)
     return RedirectResponse(f"/sales?date={date}", status_code=303)
 
 
@@ -234,7 +211,7 @@ def _summary(db, product_id: int, start: dt.date):
 
 @router.get("/materials")
 def materials_form(request: Request, date: str = "", db=Depends(db_session)):
-    day = _parse_date(date)
+    day = parse_date(date)
     all_materials = material_svc.materials(db)
     return page(request, "stock/materials.html", page="materials", day=day,
                 materials=all_materials,
@@ -256,7 +233,7 @@ def materials_receive(request: Request, date: str = Form(...),
                       vehicle_no: str = Form(""), driver_name: str = Form(""),
                       payment_status: str = Form("PENDING"),
                       lot_id: str = Form(""), db=Depends(db_session)):
-    day = _parse_date(date)
+    day = parse_date(date)
     try:
         material_svc.receive(
             db, current_actor(request), receipt_date=day,
@@ -267,14 +244,14 @@ def materials_receive(request: Request, date: str = Form(...),
             driver_name=driver_name or None, payment_status=payment_status,
             lot_id=int(lot_id) if lot_id else None)
     except (ValueError, PeriodLocked) as exc:
-        return _redirect_with_error(f"/materials?date={day.isoformat()}", exc)
+        return redirect_with_error(f"/materials?date={day.isoformat()}", exc)
     return RedirectResponse(f"/materials?date={day.isoformat()}", status_code=303)
 
 
 @router.get("/consumption")
 def consumption_form(request: Request, date: str = "", material_id: int = 0,
                      db=Depends(db_session)):
-    day = _parse_date(date)
+    day = parse_date(date)
     tracked = [m for m in material_svc.materials(db) if m.is_lot_tracked]
     if not material_id and tracked:
         material_id = tracked[0].id
@@ -290,7 +267,7 @@ def consumption_form(request: Request, date: str = "", material_id: int = 0,
 @router.post("/consumption")
 async def consumption_save(request: Request, db=Depends(db_session)):
     form = await request.form()
-    day = _parse_date(form.get("date"))
+    day = parse_date(form.get("date"))
     material_id = int(form["material_id"])
     url = f"/consumption?date={day.isoformat()}&material_id={material_id}"
     allocations = {
@@ -301,5 +278,5 @@ async def consumption_save(request: Request, db=Depends(db_session)):
                              material_id=material_id, allocations=allocations,
                              remarks=form.get("remarks") or None)
     except (ValueError, PeriodLocked, material_svc.LotShortfall) as exc:
-        return _redirect_with_error(url, exc)
+        return redirect_with_error(url, exc)
     return RedirectResponse(url, status_code=303)
