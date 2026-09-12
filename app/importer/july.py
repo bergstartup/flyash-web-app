@@ -49,7 +49,8 @@ SHEET10_MATERIALS = {
     "G": ("RAMCO CEMENT", "BAGS"),
     "H": ("M SAND", "UNIT"),
     "I": ("1/2 JALLY", "UNIT"),
-    "J": ("VITALA NEO CHEMICAL", "LTRS"),
+    # The register's own spelling; the writer emits the unit verbatim.
+    "J": ("VITALA NEO CHEMICAL", "LTR'S"),
     "K": ("FAP MIX CEMENT", "BAGS"),
 }
 
@@ -703,8 +704,11 @@ class JulyImporter:
 
     def import_materials(self) -> None:
         ws = self.wb["Sheet10"]
-        for name, unit in SHEET10_MATERIALS.values():
-            self._material(name, unit,
+        for letter, (name, unit) in SHEET10_MATERIALS.items():
+            # Which column Sheet10 gives this material. The sheet is wide --
+            # one column per material -- so the writer needs the mapping, and
+            # it belongs on the material rather than in the writer.
+            self._material(name, unit, sheet10_column=letter,
                            is_lot_tracked=1 if "CEMENT" in name else 0,
                            is_saleable=1 if "CEMENT" in name else 0)
         self._material(CEMENT, "BAGS", is_lot_tracked=1, is_saleable=1)

@@ -149,6 +149,31 @@ WHITELIST[("Sheet6", "J196")] = (
     "marked both CASH and CREDIT; the app records one mode and a credit sale "
     "is the one that leaves a debt")
 
+# Sheet10's amount column.
+WHITELIST.update({
+    ("Sheet10", cell): "the amount typed as a figure where the sheet's other "
+                       "ten rows carry qty x rate as a formula"
+    for cell in ("M14", "M15", "M18")
+})
+WHITELIST.update({
+    ("Sheet10", cell): "rate x qty here and qty x rate in the sheet's other "
+                       "ten rows; the app emits one order"
+    for cell in ("M17", "M19", "M20")
+})
+WHITELIST.update({
+    ("Sheet10", cell): "a typed 0 for a material with no receipts at all; the "
+                       "app sums the column like every other"
+    for cell in ("H27", "I27")
+})
+# Plan question 7, still open: whether supplier advances get a ledger of their
+# own. Until they do there is nowhere to put this, and inventing a home for it
+# would be worse than leaving it visible here.
+WHITELIST.update({
+    ("Sheet10", cell): "the supplier advance block, jotted in the margin; the "
+                       "app has no supplier ledger yet (plan question 7)"
+    for cell in ("N22", "O22", "N23", "O23", "N24", "O24")
+})
+
 # Sheet16's S.No repeats 8 -- AUGUST and SEPTEMBER 2024 are both numbered 8 --
 # so it runs one short of the 31 months it lists.
 WHITELIST.update({
