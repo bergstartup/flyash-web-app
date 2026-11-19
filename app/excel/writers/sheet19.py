@@ -32,6 +32,18 @@ class Sheet19Writer(SheetWriter):
         y, m = str(self.ctx.year), f"{self.ctx.month:02d}"
         incoming = self._side("IN", y, m)
         outgoing = self._side("OUT", y, m)
+        carried = self._carried(y, m)
+        if carried:
+            # A month with no OPENING entry of its own opens on the last
+            # one's closing, and the register writes that at the top the way
+            # it writes the JUNE BALANCE -- on the side its sign puts it.
+            last = self.ctx.period_start - dt.timedelta(days=1)
+            line = (self.ctx.period_start, f"{last:%B} BALANCE".upper(),
+                    abs(carried))
+            if carried > 0:
+                incoming = [line, *incoming]
+            else:
+                outgoing = [line, *outgoing]
 
         first = self.first_data_row
         self._column(incoming, first, self.in_date_col, self.in_desc_col,
@@ -70,6 +82,19 @@ class Sheet19Writer(SheetWriter):
               AND strftime('%Y', txn_date) = :y AND strftime('%m', txn_date) = :m
             ORDER BY CASE WHEN entry_type = 'OPENING' THEN 0 ELSE 1 END,
                      txn_date, id""", direction=direction, y=y, m=m)
+
+    def _carried(self, y: str, m: str) -> float:
+        """The opening the month carried in, when nobody entered one."""
+        own = self.ctx.rows("""
+            SELECT 1 FROM digital_ledger WHERE entry_type = 'OPENING'
+              AND strftime('%Y', txn_date) = :y AND strftime('%m', txn_date) = :m
+            LIMIT 1""", y=y, m=m)
+        if own:
+            return 0.0
+        row = self.ctx.rows("""
+            SELECT opening FROM digital_ledger_month WHERE period_start = :p""",
+            p=self.ctx.period_start.isoformat())
+        return row[0][0] if row else 0.0
 
     def _column(self, entries, first: int, date_col: int, desc_col: int,
                 amount_col: int) -> None:

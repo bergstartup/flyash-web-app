@@ -29,6 +29,39 @@ CREATE VIEW stock_movement AS
         p.qty, 0.0, 'PRODUCTION', NULL, NULL, p.id, NULL, NULL
     FROM production p;
 
+DROP VIEW IF EXISTS stock_period_opening;
+CREATE VIEW stock_period_opening AS
+-- What each product opens a month with. An entered opening wins -- the July
+-- import, a go-live, a stock-take. Every other month opens on the closing of
+-- the month before, counted forward from the latest entered opening, so the
+-- register rolls itself and nobody copies a balance across by hand again.
+WITH periods AS (
+    SELECT DISTINCT product_id, date(d, 'start of month') AS period_start
+    FROM stock_movement
+    UNION
+    SELECT product_id, as_on FROM stock_opening
+),
+anchored AS (
+    SELECT p.product_id, p.period_start,
+           (SELECT MAX(o.as_on) FROM stock_opening o
+             WHERE o.product_id = p.product_id
+               AND o.as_on <= p.period_start)     AS anchor_on
+    FROM periods p
+)
+SELECT
+    a.product_id,
+    a.period_start,
+    COALESCE((SELECT o.qty FROM stock_opening o
+               WHERE o.product_id = a.product_id
+                 AND o.as_on = a.anchor_on), 0)
+      + COALESCE((SELECT SUM(m.produced - m.issued) FROM stock_movement m
+                   WHERE m.product_id = a.product_id
+                     AND m.d < a.period_start
+                     AND (a.anchor_on IS NULL OR m.d >= a.anchor_on)), 0)
+                                                   AS opening,
+    CASE WHEN a.anchor_on = a.period_start THEN 1 ELSE 0 END AS is_entered
+FROM anchored a;
+
 DROP VIEW IF EXISTS stock_ledger;
 CREATE VIEW stock_ledger AS
 SELECT
@@ -46,17 +79,17 @@ SELECT
     m.destination,
     m.produced,
     m.issued,
-    COALESCE(o.qty, 0)
+    COALESCE(o.opening, 0)
         + SUM(m.produced - m.issued) OVER w
         - (m.produced - m.issued)                          AS opening,
-    COALESCE(o.qty, 0)
+    COALESCE(o.opening, 0)
         + SUM(m.produced - m.issued) OVER w
         - (m.produced - m.issued) + m.produced             AS total,
-    COALESCE(o.qty, 0) + SUM(m.produced - m.issued) OVER w AS balance
+    COALESCE(o.opening, 0) + SUM(m.produced - m.issued) OVER w AS balance
 FROM stock_movement m
-LEFT JOIN stock_opening o
+LEFT JOIN stock_period_opening o
        ON o.product_id = m.product_id
-      AND o.as_on = date(m.d, 'start of month')
+      AND o.period_start = date(m.d, 'start of month')
 WINDOW w AS (
     PARTITION BY m.product_id, date(m.d, 'start of month')
     ORDER BY m.d, m.seq, m.kind, m.line_no
@@ -65,19 +98,25 @@ WINDOW w AS (
 
 DROP VIEW IF EXISTS stock_month_summary;
 CREATE VIEW stock_month_summary AS
+-- A month with an opening and nothing moved yet -- 1 October, the morning
+-- the app goes live -- still has a row, so the opening can be checked.
 SELECT
-    m.product_id,
-    date(m.d, 'start of month')            AS period_start,
-    COALESCE(o.qty, 0)                     AS opening,
-    SUM(m.produced)                        AS production,
-    COALESCE(o.qty, 0) + SUM(m.produced)   AS total,
-    SUM(m.issued)                          AS sales,
-    COALESCE(o.qty, 0) + SUM(m.produced) - SUM(m.issued) AS closing
-FROM stock_movement m
-LEFT JOIN stock_opening o
-       ON o.product_id = m.product_id
-      AND o.as_on = date(m.d, 'start of month')
-GROUP BY m.product_id, date(m.d, 'start of month'), o.qty;
+    o.product_id,
+    o.period_start,
+    o.opening,
+    COALESCE(m.production, 0.0)                         AS production,
+    o.opening + COALESCE(m.production, 0.0)             AS total,
+    COALESCE(m.sales, 0.0)                              AS sales,
+    o.opening + COALESCE(m.production, 0.0)
+              - COALESCE(m.sales, 0.0)                  AS closing,
+    o.is_entered
+FROM stock_period_opening o
+LEFT JOIN (
+    SELECT product_id, date(d, 'start of month') AS period_start,
+           SUM(produced) AS production, SUM(issued) AS sales
+    FROM stock_movement
+    GROUP BY product_id, date(d, 'start of month')
+) m ON m.product_id = o.product_id AND m.period_start = o.period_start;
 
 DROP VIEW IF EXISTS sales_register;
 CREATE VIEW sales_register AS
@@ -350,15 +389,51 @@ GROUP BY e.customer_id;
 
 DROP VIEW IF EXISTS digital_ledger_month;
 CREATE VIEW digital_ledger_month AS
+-- A month opens on its own OPENING entry when it has one -- July's JUNE
+-- BALANCE, a go-live figure -- and otherwise on the month before's closing,
+-- counted forward from the latest month that does.
+WITH months AS (
+    SELECT DISTINCT date(txn_date, 'start of month') AS period_start
+    FROM digital_ledger
+),
+anchored AS (
+    SELECT mo.period_start,
+           (SELECT MAX(date(o.txn_date, 'start of month')) FROM digital_ledger o
+             WHERE o.entry_type = 'OPENING'
+               AND date(o.txn_date, 'start of month') <= mo.period_start)
+                                                     AS anchor_on
+    FROM months mo
+),
+opened AS (
+    SELECT a.period_start,
+           COALESCE((SELECT SUM(CASE WHEN o.direction = 'IN'
+                                     THEN o.amount ELSE -o.amount END)
+                      FROM digital_ledger o
+                      WHERE o.entry_type = 'OPENING'
+                        AND date(o.txn_date, 'start of month') = a.anchor_on), 0)
+             + COALESCE((SELECT SUM(CASE WHEN x.direction = 'IN'
+                                         THEN x.amount ELSE -x.amount END)
+                          FROM digital_ledger x
+                          WHERE x.entry_type <> 'OPENING'
+                            AND x.txn_date < a.period_start
+                            AND (a.anchor_on IS NULL
+                                 OR x.txn_date >= a.anchor_on)), 0) AS opening
+    FROM anchored a
+)
 SELECT
-    date(txn_date, 'start of month') AS period_start,
-    SUM(CASE WHEN entry_type = 'OPENING' THEN amount ELSE 0 END) AS opening,
-    SUM(CASE WHEN direction = 'IN'  AND entry_type <> 'OPENING'
-             THEN amount ELSE 0 END) AS income,
-    SUM(CASE WHEN direction = 'OUT' THEN amount ELSE 0 END) AS expense,
-    SUM(CASE WHEN direction = 'IN'  THEN amount ELSE -amount END) AS closing
-FROM digital_ledger
-GROUP BY date(txn_date, 'start of month');
+    o.period_start,
+    o.opening,
+    SUM(CASE WHEN l.direction = 'IN'  AND l.entry_type <> 'OPENING'
+             THEN l.amount ELSE 0 END) AS income,
+    SUM(CASE WHEN l.direction = 'OUT' AND l.entry_type <> 'OPENING'
+             THEN l.amount ELSE 0 END) AS expense,
+    o.opening
+      + SUM(CASE WHEN l.entry_type = 'OPENING' THEN 0
+                 WHEN l.direction = 'IN' THEN l.amount
+                 ELSE -l.amount END)   AS closing
+FROM opened o
+JOIN digital_ledger l ON date(l.txn_date, 'start of month') = o.period_start
+GROUP BY o.period_start, o.opening;
 
 DROP VIEW IF EXISTS bike_mileage_daily;
 CREATE VIEW bike_mileage_daily AS

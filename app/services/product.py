@@ -9,7 +9,7 @@ from __future__ import annotations
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.db.models import Product, SaleLine
+from app.db.models import Product, Sale, SaleLine
 from app.services.audit import record
 
 LEDGER_SHEETS = ("Sheet5", "Sheet8", "Sheet9")
@@ -94,3 +94,12 @@ def reactivate(db: Session, actor: str, product_id: int) -> Product:
 def times_sold(db: Session, product_id: int) -> int:
     return db.query(func.count(SaleLine.id)).filter_by(
         product_id=product_id).scalar() or 0
+
+
+def last_charged(db: Session, product_id: int) -> tuple[float, object] | None:
+    """The rate the latest real sale of a product charged, and its date --
+    what the plant is actually charging, next to what the screen offers."""
+    return db.query(SaleLine.rate, Sale.sale_date).join(Sale).filter(
+        SaleLine.product_id == product_id, Sale.movement_type == "SALE",
+        SaleLine.rate.is_not(None)).order_by(
+        Sale.sale_date.desc(), Sale.seq_no.desc(), SaleLine.line_no.desc()).first()

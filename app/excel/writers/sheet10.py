@@ -37,8 +37,9 @@ class Sheet10Writer(SheetWriter):
         rows = self.ctx.rows("""
             SELECT r.receipt_date, s.name, r.bill_no, r.vehicle_no,
                    r.material_id, r.qty, r.rate, r.amount, r.amount_overridden,
-                   r.driver_name, r.payment_status
+                   r.driver_name, r.payment_status, rm.name, rm.unit
             FROM material_receipt r
+            JOIN raw_material rm ON rm.id = r.material_id
             LEFT JOIN supplier s ON s.id = r.supplier_id
             WHERE strftime('%Y', r.receipt_date) = :y
               AND strftime('%m', r.receipt_date) = :m
@@ -48,10 +49,16 @@ class Sheet10Writer(SheetWriter):
         row = first
         previous: dt.date | None = None
         for (day, supplier, bill, vehicle, material_id, qty, rate, amount,
-             overridden, driver, status) in rows:
+             overridden, driver, status, name, unit) in rows:
             day = _as_date(day)
             self.date_or_ditto(row, self.date_col, day, previous)
             previous = day
+            own_column = material_id in columns
+            if not own_column:
+                # Seven columns, seven materials: an eighth has nowhere to go,
+                # so it is named beside the supplier and its amount stands on
+                # its own rather than as a formula over a column it lacks.
+                supplier = f"{supplier or ''} ({name} {qty:g} {unit})".strip()
             self.put(row, self.supplier_col, supplier)
             # The register never leaves these blank -- it writes NIL, which
             # the importer reads as "nothing" and stores as NULL.
@@ -61,7 +68,7 @@ class Sheet10Writer(SheetWriter):
                 self.put(row, column,
                          qty if other_id == material_id else NOT_APPLICABLE)
             self.put(row, self.rate_col, rate)
-            if overridden:
+            if overridden or not own_column:
                 self.put(row, self.amount_col, amount)
             else:
                 self.formula(row, self.amount_col,

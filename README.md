@@ -32,6 +32,28 @@ python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
 ./scripts/run.sh                        # serve on 0.0.0.0:8000
 ```
 
+## Month to month, and going live
+
+Every register carries its own closing into the next month: stock
+(`stock_period_opening`), cement (`app/reports/opening.py`), and the digital
+account (`digital_ledger_month`). Nothing is copied across by hand.
+
+An entered opening overrides the carried figure. Enter one only when the
+carried figure is known to be wrong: going live after months the app never
+saw, or a stock-take. Use **Overview → Opening figures** (`/opening`). Pick
+the month, copy the previous month's closing figures from the book, and save.
+The screen shows each carried figure beside the entered one. On the same
+screen, give the last meter reading before the month and, if a bill has been
+raised since, where the EB billing cycle started.
+
+**Overview → Import a month** (`/import`) resets one month to its Excel
+register. Upload the month's workbook (same layout as `JULY.xlsx`). The screen
+checks the file first and shows what each register holds now against what the
+file holds. It also lists any names that will be added and any opening figure
+that differs from the previous month's closing. Confirming takes a backup into
+`data/backups/`, then replaces only that month. A closed month must be
+reopened first. Uploaded files are kept in `data/imports/`.
+
 ## The three checks that matter
 
 ```bash
@@ -69,7 +91,7 @@ Suggested crontab on the plant box:
 | `app/web/routers/` | Screens: `labour.py` for Phase 1, `stock.py` for Phase 2. |
 | `app/reports/` | Read paths — one function per sheet, shared by the screens and the Excel writers. |
 | `app/excel/` | Template, toolkit, per-sheet writers, diff harness. |
-| `app/importer/` | One-time July migration and the anomaly detector. |
+| `app/importer/` | The register reader (`workbook.py`, used by the July migration and the month import) and the anomaly detector. |
 
 ## Authentication
 

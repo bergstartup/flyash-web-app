@@ -40,6 +40,8 @@ GROUPS: tuple[Group, ...] = (
         Item("daily", "Daily round", "/daily"),
         Item("reconciliation", "Reconciliation", "/reconciliation"),
         Item("anomalies", "Error register", "/anomalies"),
+        Item("opening", "Opening figures", "/opening"),
+        Item("import", "Import a month", "/import"),
     )),
     Group("Labour", (
         Item("attendance", "Attendance", "/attendance"),
@@ -58,6 +60,7 @@ GROUPS: tuple[Group, ...] = (
     Group("Materials", (
         Item("materials", "Deliveries", "/materials"),
         Item("consumption", "Consumption", "/consumption"),
+        Item("raw-materials", "Materials & suppliers", "/raw-materials"),
     )),
     Group("Plant", (
         Item("power", "Power", "/power"),

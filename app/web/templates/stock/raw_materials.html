@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Materials &amp; suppliers - SMCP Kallakudi{% endblock %}
+{% block body %}
+<h1>Materials &amp; suppliers</h1>
+<p class="sub">What the plant buys, and who from. The <b>default rate</b> is
+   the price per unit the delivery screen fills in for you - a delivery keeps
+   what it was actually billed at, so changing it never rewrites one already
+   entered. The <b>reorder level</b> is the stock below which the delivery
+   screen warns; leave it blank for no warning.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<h2>Materials</h2>
+<p>A material's name is fixed once it exists: the cement log and the cement
+   opening find their materials by name. Whether it is kept in lots can only
+   change before its first delivery.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th>Material</th><th>Unit</th>
+    <th class="num">Default rate<br>(Rs per unit)</th>
+    <th class="num">Reorder level<br>(in its unit)</th>
+    <th>Kept in lots</th><th>Also sold</th>
+    <th class="num">Deliveries</th><th></th></tr></thead>
+  <tbody>
+  {% for m in materials %}
+    <tr>
+      <td class="key rowname">{{ m.name }}
+        {% if not m.sheet10_column %}<small>not a Sheet10 column</small>{% endif %}</td>
+      <td><input name="unit" form="m{{ m.id }}" value="{{ m.unit }}" required
+                 style="width:5.5rem"></td>
+      <td class="num">
+        <span style="color:var(--muted)">Rs</span>
+        <input type="number" step="0.01" min="0" name="default_rate" form="m{{ m.id }}"
+               value="{{ '%g' % m.default_rate if m.default_rate else '' }}"
+               placeholder="not set" style="width:6.5rem">
+        <span style="color:var(--muted)">/ {{ m.unit }}</span></td>
+      <td class="num">
+        <input type="number" step="0.01" min="0" name="reorder_level" form="m{{ m.id }}"
+               value="{{ '%g' % m.reorder_level if m.reorder_level else '' }}"
+               placeholder="no warning" style="width:6.5rem"></td>
+      <td>
+        {% if m.id in locked %}
+          <input type="hidden" name="is_lot_tracked" form="m{{ m.id }}"
+                 value="{{ '1' if m.is_lot_tracked else '' }}">
+          <span title="Fixed: it already has deliveries or lots">
+            {{ 'Yes' if m.is_lot_tracked else 'No' }}</span>
+        {% else %}
+          <input type="checkbox" name="is_lot_tracked" value="1" form="m{{ m.id }}"
+                 {{ 'checked' if m.is_lot_tracked }}>
+        {% endif %}
+      </td>
+      <td><input type="checkbox" name="is_saleable" value="1" form="m{{ m.id }}"
+                 {{ 'checked' if m.is_saleable }}></td>
+      <td class="num">{{ counts.material.get(m.id, 0) }}</td>
+      <td><form id="m{{ m.id }}" method="post" action="/raw-materials/{{ m.id }}"
+                class="inline"><button type="submit">Save</button></form></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Add a material</h2>
+<form method="post" action="/raw-materials" class="toolbar">
+  <input name="name" placeholder="Name" required style="width:12rem">
+  <input name="unit" placeholder="Unit - TONNE, LOAD, BAGS" required style="width:12rem">
+  <input type="number" step="0.01" min="0" name="default_rate"
+         placeholder="Rate, Rs per unit" style="width:10rem">
+  <input type="number" step="0.01" min="0" name="reorder_level"
+         placeholder="Reorder level" style="width:9rem">
+  <label><input type="checkbox" name="is_lot_tracked" value="1"> Kept in lots</label>
+  <label><input type="checkbox" name="is_saleable" value="1"> Also sold</label>
+  <button type="submit">Add</button>
+</form>
+<p class="sub">The Sheet10 export has one column per material, and all seven
+   are taken. A new material's deliveries still export, with the material
+   named beside the supplier instead of in a column of its own.</p>
+
+<h2 id="suppliers">Suppliers</h2>
+<p>Renaming a supplier renames it on its past deliveries too, which is what
+   fixing a misspelling wants.</p>
+<div class="scroll">
+<table>
+  <thead><tr><th>Supplier</th><th>Contact</th><th class="num">Deliveries</th>
+    <th></th></tr></thead>
+  <tbody>
+  {% for s in suppliers %}
+    <tr>
+      <td><input name="name" form="s{{ s.id }}" value="{{ s.name }}" required
+                 style="width:16rem"></td>
+      <td><input name="contact" form="s{{ s.id }}" value="{{ s.contact or '' }}"
+                 placeholder="phone, person" style="width:14rem"></td>
+      <td class="num">{{ counts.supplier.get(s.id, 0) }}</td>
+      <td><form id="s{{ s.id }}" method="post" action="/suppliers/{{ s.id }}"
+                class="inline"><button type="submit">Save</button></form></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" style="color:var(--muted)">No suppliers yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+<h2>Add a supplier</h2>
+<form method="post" action="/suppliers" class="toolbar">
+  <input name="name" placeholder="Name" required style="width:16rem">
+  <input name="contact" placeholder="Contact" style="width:14rem">
+  <button type="submit">Add</button>
+</form>
+{% endblock %}

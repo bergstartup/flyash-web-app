@@ -36,19 +36,27 @@ def available(db: Session, product_id: int, day: dt.date,
               ignoring: int | None = None) -> float:
     """Stock on hand at the end of ``day``: opening + production - issues.
 
-    Scoped to the day's own month, because that is where the opening lives.
-    ``ignoring`` leaves one sale out, so re-checking an edit does not count
-    the quantity it is about to replace.
+    Counted from the latest entered opening on or before the day, not from
+    the first of the month -- a month with no opening of its own opens on
+    the last one's closing, as ``stock_period_opening`` does. ``ignoring``
+    leaves one sale out, so re-checking an edit does not count the quantity
+    it is about to replace.
     """
-    start = day.replace(day=1)
     return db.execute(text("""
-        SELECT COALESCE((SELECT qty FROM stock_opening
-                          WHERE product_id = :p AND as_on = :start), 0)
-             + COALESCE((SELECT SUM(produced - issued) FROM stock_movement
-                          WHERE product_id = :p AND d BETWEEN :start AND :day
+        WITH anchor AS (
+            SELECT MAX(as_on) AS on_ FROM stock_opening
+            WHERE product_id = :p AND as_on <= :day
+        )
+        SELECT COALESCE((SELECT o.qty FROM stock_opening o, anchor a
+                          WHERE o.product_id = :p AND o.as_on = a.on_), 0)
+             + COALESCE((SELECT SUM(m.produced - m.issued)
+                          FROM stock_movement m, anchor a
+                          WHERE m.product_id = :p AND m.d <= :day
+                            AND (a.on_ IS NULL OR m.d >= a.on_)
                             AND (:ignoring IS NULL
-                                 OR sale_id IS NULL OR sale_id <> :ignoring)), 0)
-    """), {"p": product_id, "start": start.isoformat(), "day": day.isoformat(),
+                                 OR m.sale_id IS NULL
+                                 OR m.sale_id <> :ignoring)), 0)
+    """), {"p": product_id, "day": day.isoformat(),
            "ignoring": ignoring}).scalar() or 0.0
 
 

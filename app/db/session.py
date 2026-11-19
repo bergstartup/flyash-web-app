@@ -53,7 +53,7 @@ def apply_views(conn, strict: bool = True) -> int:
     what alembic autogenerate needs on an empty database.
     """
     applied = 0
-    for stmt in _statements(VIEWS_SQL.read_text()):
+    for stmt in _statements(VIEWS_SQL.read_text(encoding="utf-8")):
         try:
             conn.execute(text(stmt))
         except OperationalError:

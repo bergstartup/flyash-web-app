@@ -16,6 +16,11 @@ DATABASE_URL = f"sqlite+pysqlite:///{DB_PATH}"
 SOURCE_WORKBOOK = Path(os.getenv("SMCP_SOURCE_XLSX", BASE_DIR / "JULY.xlsx"))
 EXCEL_TEMPLATE = BASE_DIR / "app" / "excel" / "template.xlsx"
 
+# Where the month import keeps the workbooks it was given, and the snapshot it
+# takes before each one. scripts/backup.sh writes to the same directory.
+IMPORT_DIR = Path(os.getenv("SMCP_IMPORT_DIR", DATA_DIR / "imports"))
+BACKUP_DIR = Path(os.getenv("SMCP_BACKUP_DIR", DATA_DIR / "backups"))
+
 # Financial year start month for roll-ups. April = Indian FY. See plan Q9.
 FY_START_MONTH = int(os.getenv("SMCP_FY_START_MONTH", "4"))
 

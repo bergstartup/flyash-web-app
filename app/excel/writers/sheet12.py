@@ -14,10 +14,7 @@ from __future__ import annotations
 import datetime as dt
 
 from app.excel.toolkit import SheetWriter, col
-
-CEMENT = "CEMENT"
-RAMCO = "RAMCO CEMENT"
-FAP = "FAP MIX CEMENT"
+from app.reports.opening import CEMENT, FAP, RAMCO, cement_opening
 
 
 class Sheet12Writer(SheetWriter):
@@ -39,7 +36,6 @@ class Sheet12Writer(SheetWriter):
 
     def write(self) -> int:
         y, m = str(self.ctx.year), f"{self.ctx.month:02d}"
-        period = self.ctx.period_start.isoformat()
         # Every day the cement moved: consumed, received, sold, or shifted
         # between lots. 19 July only moved between lots and still gets a row.
         days = [_as_date(r[0]) for r in self.ctx.rows("""
@@ -62,12 +58,8 @@ class Sheet12Writer(SheetWriter):
             WHERE UPPER(p.name) = :cement AND strftime('%Y', s.sale_date) = :y
               AND strftime('%m', s.sale_date) = :m
             ORDER BY 1""", y=y, m=m, cement=CEMENT)]
-        opening = self.ctx.rows("""
-            SELECT COALESCE(o.qty, 0) FROM material_opening o
-            JOIN raw_material rm ON rm.id = o.material_id
-            WHERE rm.name = :cement AND o.as_on = :period""",
-            cement=CEMENT, period=period)
-        opening = opening[0][0] if opening else 0.0
+        # The month's own opening if one was entered, else last month's close.
+        opening = cement_opening(self.ctx.conn, self.ctx.period_start)
 
         received = self._by_day("""
             SELECT r.receipt_date, SUM(r.qty) FROM material_receipt r

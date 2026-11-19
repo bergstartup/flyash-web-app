@@ -61,7 +61,7 @@ def test_a_screen_lights_up_its_own_group_and_itself(item):
     assert len(current) == 2, "one group tab and one screen should be current"
     group, screen = current
     assert group == nav.active(item.page).label.replace("&", "&amp;")
-    assert screen == item.label
+    assert screen == item.label.replace("&", "&amp;")
 
 
 def test_a_sub_page_stays_under_the_screen_it_belongs_to():

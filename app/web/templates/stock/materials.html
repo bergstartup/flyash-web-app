@@ -24,9 +24,9 @@
 <h2>Record a delivery</h2>
 <form method="post" action="/materials" class="toolbar">
   <input type="hidden" name="date" value="{{ day }}">
-  <select name="material_id" required>
+  <select name="material_id" id="material" required>
     {% for m in materials %}
-    <option value="{{ m.id }}">{{ m.name }} ({{ m.unit }})</option>
+    <option value="{{ m.id }}" data-rate="{{ '%g' % m.default_rate if m.default_rate else '' }}">{{ m.name }} ({{ m.unit }})</option>
     {% endfor %}
   </select>
   <select name="supplier_id">
@@ -34,7 +34,7 @@
     {% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
   </select>
   <input type="number" step="0.01" name="qty" placeholder="Qty" required style="width:6rem">
-  <input type="number" step="0.01" name="rate" placeholder="Rate" required style="width:6rem">
+  <input type="number" step="0.01" name="rate" id="rate" placeholder="Rate, Rs" required style="width:7rem">
   <input type="number" step="0.01" name="amount" placeholder="qty x rate" style="width:8rem">
   <input name="bill_no" placeholder="Bill no" style="width:8rem">
   <input name="vehicle_no" placeholder="Vehicle" style="width:8rem">
@@ -52,7 +52,23 @@
   </select>
   <button type="submit">Record</button>
 </form>
-<p class="sub">A lot-tracked material needs a lot. Leave it on <em>new</em> and
+<script>
+  // The material's default rate, from the master, until someone types over it.
+  (function () {
+    var material = document.getElementById("material");
+    var rate = document.getElementById("rate");
+    var filled = "";
+    function offer() {
+      var r = material.selectedOptions[0].dataset.rate || "";
+      if (rate.value === "" || rate.value === filled) { rate.value = r; filled = r; }
+    }
+    material.addEventListener("change", offer);
+    offer();
+  })();
+</script>
+<p class="sub">The rate starts at the material's default from
+   <a href="/raw-materials">Materials &amp; suppliers</a>; change it to what
+   the bill says. A lot-tracked material needs a lot. Leave it on <em>new</em> and
    the delivery opens one named for the day.</p>
 
 <h2>{{ day.strftime('%d %B %Y') }}</h2>

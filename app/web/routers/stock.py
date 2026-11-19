@@ -37,6 +37,7 @@ def product_list(request: Request, db=Depends(db_session)):
     return page(request, "stock/products.html", page="products",
                 products=products,
                 sold={p.id: product_svc.times_sold(db, p.id) for p in products},
+                last={p.id: product_svc.last_charged(db, p.id) for p in products},
                 ledger_sheets=product_svc.LEDGER_SHEETS,
                 error=request.query_params.get("error"))
 
@@ -208,6 +209,82 @@ def _summary(db, product_id: int, start: dt.date):
 
 
 # -- Raw materials and cement (Phase 4) -------------------------------------
+
+def _optional_number(value: str, what: str) -> float | None:
+    value = (value or "").replace(",", "").strip()
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        raise ValueError(f"{what}: '{value}' is not a number.") from None
+
+
+@router.get("/raw-materials")
+def material_master(request: Request, db=Depends(db_session)):
+    all_materials = material_svc.materials(db)
+    return page(request, "stock/raw_materials.html", page="raw-materials",
+                materials=all_materials,
+                suppliers=material_svc.suppliers(db),
+                counts=material_svc.deliveries_count(db),
+                locked={m.id for m in all_materials
+                        if material_svc.has_history(db, m.id)},
+                error=request.query_params.get("error"))
+
+
+@router.post("/raw-materials")
+def material_create(request: Request, name: str = Form(...),
+                    unit: str = Form(...), default_rate: str = Form(""),
+                    reorder_level: str = Form(""), is_lot_tracked: str = Form(""),
+                    is_saleable: str = Form(""), db=Depends(db_session)):
+    try:
+        material_svc.create_material(
+            db, current_actor(request), name=name, unit=unit,
+            default_rate=_optional_number(default_rate, "Rate"),
+            reorder_level=_optional_number(reorder_level, "Reorder level"),
+            is_lot_tracked=bool(is_lot_tracked), is_saleable=bool(is_saleable))
+    except ValueError as exc:
+        return redirect_with_error("/raw-materials", exc)
+    return RedirectResponse("/raw-materials", status_code=303)
+
+
+@router.post("/raw-materials/{material_id}")
+def material_update(request: Request, material_id: int, unit: str = Form(...),
+                    default_rate: str = Form(""), reorder_level: str = Form(""),
+                    is_lot_tracked: str = Form(""), is_saleable: str = Form(""),
+                    db=Depends(db_session)):
+    try:
+        material_svc.update_material(
+            db, current_actor(request), material_id, unit=unit,
+            default_rate=_optional_number(default_rate, "Rate"),
+            reorder_level=_optional_number(reorder_level, "Reorder level"),
+            is_lot_tracked=bool(is_lot_tracked), is_saleable=bool(is_saleable))
+    except ValueError as exc:
+        return redirect_with_error("/raw-materials", exc)
+    return RedirectResponse("/raw-materials", status_code=303)
+
+
+@router.post("/suppliers")
+def supplier_create(request: Request, name: str = Form(...),
+                    contact: str = Form(""), db=Depends(db_session)):
+    try:
+        material_svc.create_supplier(db, current_actor(request), name=name,
+                                     contact=contact)
+    except ValueError as exc:
+        return redirect_with_error("/raw-materials", exc)
+    return RedirectResponse("/raw-materials#suppliers", status_code=303)
+
+
+@router.post("/suppliers/{supplier_id}")
+def supplier_update(request: Request, supplier_id: int, name: str = Form(...),
+                    contact: str = Form(""), db=Depends(db_session)):
+    try:
+        material_svc.update_supplier(db, current_actor(request), supplier_id,
+                                     name=name, contact=contact)
+    except ValueError as exc:
+        return redirect_with_error("/raw-materials", exc)
+    return RedirectResponse("/raw-materials#suppliers", status_code=303)
+
 
 @router.get("/materials")
 def materials_form(request: Request, date: str = "", db=Depends(db_session)):

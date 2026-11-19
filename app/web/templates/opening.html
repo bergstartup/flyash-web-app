@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Opening figures - {{ as_on.strftime('%B %Y') }}{% endblock %}
+{% block body %}
+{% set f = figures %}
+{% set n = '{:,.2f}' %}
+<h1>Opening figures &middot; {{ as_on.strftime('%B %Y') }}</h1>
+<p class="sub">Every register carries last month's closing into this month on
+   its own - nothing here needs doing month to month. Use this page on the day
+   the carried figure is known to be wrong: going live after months the app
+   never saw, or a count that disagrees with the books. Copy each figure from
+   the {{ last_day.strftime('%B') }} book's closing. Leave a box blank to go
+   back to carrying.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% if saved %}<div class="notice">Saved. Check the carried column against the
+   book once more, then open the <a href="/?year={{ as_on.year }}&month={{ as_on.month }}">dashboard</a>
+   for {{ as_on.strftime('%B') }}.</div>{% endif %}
+
+<form class="toolbar" method="get" action="/opening">
+  <input type="month" name="month" value="{{ as_on.strftime('%Y-%m') }}"
+         onchange="this.form.submit()" style="font:inherit;font-size:.88rem">
+  <span style="color:var(--muted);font-size:.85rem">opening on
+    {{ as_on.strftime('%d %b %Y') }}</span>
+</form>
+
+{% macro row(line, field, step='1') %}
+  {% set diff = line.entered - line.carried if line.entered is not none else none %}
+  <tr>
+    <td class="key rowname">{{ line.name }}</td>
+    <td class="num">{{ n.format(line.carried) }}</td>
+    <td class="num">
+      <input type="number" step="{{ step }}" style="width:9rem" name="{{ field }}"
+             value="{{ '%g' % line.entered if line.entered is not none else '' }}">
+    </td>
+    <td class="num {{ 'bad' if diff and diff|abs > 0.005 }}">
+      {{ '{:+,.2f}'.format(diff) if diff is not none else '--' }}</td>
+  </tr>
+{% endmacro %}
+
+<form method="post" action="/opening">
+  <input type="hidden" name="month" value="{{ as_on.strftime('%Y-%m') }}">
+
+  <h2>Stock on hand</h2>
+  <p>Closing stock of each product on {{ last_day.strftime('%d %b') }}. Sales
+     are checked against this, so a product left at nought cannot be sold.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Product</th><th class="num">Carried</th>
+      <th class="num">Per the book</th><th class="num">Difference</th></tr></thead>
+    <tbody>
+    {% for line in f.stock %}{{ row(line, 'stock_' ~ line.id) }}{% endfor %}
+    {% if f.cement %}{{ row(f.cement, 'cement', '0.01') }}{% endif %}
+    </tbody>
+  </table></div>
+
+  {% if f.lots or lot_materials %}
+  <h2>Cement lots</h2>
+  <p>What is left in each lot. A lot that has been used up is 0. A lot the app
+     has never seen - filled after it last had data - goes in the empty row.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Lot</th><th class="num">Carried</th>
+      <th class="num">Standing</th><th class="num">Difference</th></tr></thead>
+    <tbody>
+    {% for line in f.lots %}{{ row(line, 'lot_' ~ line.id, '0.01') }}{% endfor %}
+    <tr>
+      <td colspan="4">
+        <div class="inline" style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <select name="new_lot_material" style="font:inherit">
+            {% for m in lot_materials %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+          </select>
+          <input name="new_lot_label" placeholder="Lot name" maxlength="20" style="width:8rem">
+          <input type="date" name="new_lot_date" title="When it was filled">
+          <input type="number" step="0.01" name="new_lot_qty" placeholder="Standing" style="width:8rem">
+        </div>
+      </td>
+    </tr>
+    </tbody>
+  </table></div>
+  {% endif %}
+
+  <h2>Digital account</h2>
+  <p>The balance on {{ last_day.strftime('%d %b') }}. Negative for an overdraft.</p>
+  <div class="scroll"><table>
+    <thead><tr><th></th><th class="num">Carried</th>
+      <th class="num">Per the book</th><th class="num">Difference</th></tr></thead>
+    <tbody>{{ row(f.ledger, 'ledger', '0.01') }}</tbody>
+  </table></div>
+
+  <h2>Power meter</h2>
+  <p>The meter does not need an opening - it only needs the last reading before
+     the month, so the 1st's movement is one day's and not several months'.
+     {% if f.last_reading %}The app's last reading is
+     {{ f.last_reading.reading_date.strftime('%d %b %Y') }}:
+     {{ '{:,.1f}'.format(f.last_reading.kwh) }} KWH /
+     {{ '{:,.1f}'.format(f.last_reading.kvah) }} KVAH.{% endif %}</p>
+  {% set lr = f.last_reading if f.last_reading and f.last_reading.reading_date == last_day else none %}
+  <div class="toolbar">
+    <div class="field"><label>Last reading, on</label>
+      <input type="date" name="close_date" value="{{ last_day }}"></div>
+    <div class="field"><label>KWH</label>
+      <input type="number" step="0.1" name="close_kwh" style="width:9rem"
+             value="{{ lr.kwh if lr else '' }}"></div>
+    <div class="field"><label>KVAH</label>
+      <input type="number" step="0.1" name="close_kvah" style="width:9rem"
+             value="{{ lr.kvah if lr else '' }}"></div>
+  </div>
+  <p class="sub" style="margin-bottom:.5rem">The cumulative columns count from
+     the start of the EB billing cycle.
+     {% if f.eb_anchor %}The current cycle started
+     {{ f.eb_anchor.reading_date.strftime('%d %b %Y') }} at
+     {{ '{:,.1f}'.format(f.eb_anchor.kwh) }} / {{ '{:,.1f}'.format(f.eb_anchor.kvah) }}.
+     Give a new start only if a bill has been raised since.{% endif %}</p>
+  <div class="toolbar">
+    <div class="field"><label>Billing cycle started</label>
+      <input type="date" name="anchor_date"></div>
+    <div class="field"><label>KWH</label>
+      <input type="number" step="0.1" name="anchor_kwh" style="width:9rem"></div>
+    <div class="field"><label>KVAH</label>
+      <input type="number" step="0.1" name="anchor_kvah" style="width:9rem"></div>
+  </div>
+
+  <button type="submit">Save opening figures</button>
+</form>
+{% endblock %}

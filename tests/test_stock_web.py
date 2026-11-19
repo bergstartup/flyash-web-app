@@ -84,3 +84,14 @@ def test_drawing_more_than_a_lot_holds_comes_back_as_a_message():
         "date": "2026-07-02", "material_id": "8", "lot_1": "99999"})
     assert r.status_code == 303
     assert "error=" in r.headers["location"]
+
+
+def test_the_material_master_lists_materials_and_suppliers():
+    body = client.get("/raw-materials").text
+    assert "RAMCO CEMENT" in body and "Default rate" in body
+    assert 'id="suppliers"' in body
+
+
+def test_the_delivery_form_offers_the_masters_rate():
+    body = client.get("/materials").text
+    assert 'data-rate=' in body and 'id="rate"' in body

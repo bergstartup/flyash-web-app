@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Import a month - {{ as_on.strftime('%B %Y') }}{% endblock %}
+{% block body %}
+<h1>Import a month from Excel</h1>
+<p class="sub">Replaces everything the app holds for one month with that
+   month's register workbook - attendance, extra work, advances, salary, sales,
+   production, deliveries, materials, cement, power, the digital ledger, the
+   pallet and bike registers, the month's opening figures and the debtor list
+   at its end. Other months are not touched. Names the app has not seen -
+   new staff, customers, products - are added. The file is checked first and
+   nothing changes until you confirm.</p>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% if saved %}<div class="notice">{{ as_on.strftime('%B %Y') }} now matches the
+   workbook. The database as it stood before the import was saved as
+   <code>data/backups/{{ backup }}</code>. Open the
+   <a href="/?year={{ as_on.year }}&month={{ as_on.month }}">dashboard</a>
+   for {{ as_on.strftime('%B') }}.</div>{% endif %}
+
+{% if preview %}
+  {% set r = preview %}
+  <h2>Importing {{ filename }} will replace {{ r.month.strftime('%B %Y') }}</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Register</th><th class="num">In the app now</th>
+      <th class="num">From the file</th></tr></thead>
+    <tbody>
+    {% for line in r.lines %}
+      <tr>
+        <td class="key rowname">{{ line.label }}</td>
+        <td class="num">{{ '{:,}'.format(line.before) }}</td>
+        <td class="num {{ 'warn' if line.after != line.before }}">{{ '{:,}'.format(line.after) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+
+  {% if r.warnings %}
+  <h2>Check these</h2>
+  <div class="notice"><ul style="margin:0;padding-left:1.1rem">
+    {% for w in r.warnings %}<li>{{ w }}</li>{% endfor %}
+  </ul></div>
+  {% endif %}
+
+  {% if r.created %}
+  <h2>New to the app</h2>
+  <p>These names are not in the app yet and will be added.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Kind</th><th>Name</th></tr></thead>
+    <tbody>
+    {% for kind, name in r.created %}
+      <tr><td>{{ kind }}</td><td class="rowname">{{ name }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+
+  {% if r.outside_month %}
+  <p class="sub">{{ r.outside_month }} row{{ 's' if r.outside_month != 1 }}
+     dated outside {{ r.month.strftime('%B') }} will be left out.</p>
+  {% endif %}
+
+  <form method="post" action="/import/confirm" class="toolbar">
+    <input type="hidden" name="token" value="{{ token }}">
+    <button type="submit">Replace {{ r.month.strftime('%B %Y') }} with this file</button>
+    <a class="navbtn" href="/import?month={{ r.month.strftime('%Y-%m') }}">Cancel</a>
+  </form>
+{% else %}
+  <form method="post" action="/import" enctype="multipart/form-data" class="inline"
+        style="margin-bottom:1.25rem">
+    <div class="field"><label>Month</label>
+      <input type="month" name="month" value="{{ as_on.strftime('%Y-%m') }}" required></div>
+    <div class="field"><label>Register workbook (.xlsx)</label>
+      <input type="file" name="file" accept=".xlsx" required></div>
+    <button type="submit">Check the file</button>
+  </form>
+  <p class="sub">A closed month has to be reopened first. A backup of the
+     database is taken before anything is replaced.</p>
+{% endif %}
+{% endblock %}

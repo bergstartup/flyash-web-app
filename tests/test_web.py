@@ -43,3 +43,20 @@ def test_unknown_actor_falls_back_rather_than_failing():
                    headers={"referer": "/"}, follow_redirects=False)
     assert r.status_code == 303
     assert fresh.cookies.get(COOKIE) == "M.DIRECTOR"
+
+
+def test_the_dashboard_offers_the_months_workbook():
+    body = client.get("/?year=2026&month=7").text
+    assert 'action="/export"' in body and 'value="2026-07"' in body
+
+
+def test_the_workbook_downloads_with_the_registers_sheets():
+    import io
+
+    import openpyxl
+    r = client.get("/export?month=2026-07")
+    assert r.status_code == 200
+    assert 'filename="JULY-2026.xlsx"' in r.headers["content-disposition"]
+    wb = openpyxl.load_workbook(io.BytesIO(r.content))
+    assert wb.sheetnames[0] == "Sheet1" and "Sheet20" in wb.sheetnames
+    assert wb["Sheet5"].max_row > 100, "the brick ledger is filled, not a template"

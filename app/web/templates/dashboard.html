@@ -6,6 +6,14 @@
 <p class="sub">Every figure below is derived from the entered data - none of
    it is typed.</p>
 
+<form class="toolbar" method="get" action="/export">
+  <input type="month" name="month" value="{{ '%04d-%02d' % (year, month) }}"
+         required style="font:inherit;font-size:.88rem">
+  <button type="submit">Download workbook</button>
+  <span style="color:var(--muted);font-size:.85rem">Sheet1 to Sheet20, as
+    the register keeps them, built from today's data.</span>
+</form>
+
 <dl class="cards">
   {% for c in cards %}
   <div class="card">

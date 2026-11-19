@@ -37,6 +37,140 @@ def suppliers(db: Session) -> list[Supplier]:
     return db.query(Supplier).order_by(Supplier.name).all()
 
 
+# -- the master: materials and suppliers ------------------------------------
+
+def _clean(value: str | None) -> str:
+    return " ".join((value or "").split()).upper()
+
+
+def _positive_or_none(value: float | None, what: str) -> float | None:
+    if value is not None and value < 0:
+        raise ValueError(f"{what} cannot be negative.")
+    return value or None
+
+
+def has_history(db: Session, material_id: int) -> bool:
+    """Whether anything has been recorded against a material yet."""
+    return any(db.query(model).filter_by(material_id=material_id).first()
+               for model in (MaterialReceipt, MaterialConsumption, MaterialLot))
+
+
+def create_material(db: Session, actor: str, *, name: str, unit: str,
+                    default_rate: float | None = None,
+                    reorder_level: float | None = None,
+                    is_lot_tracked: bool = False,
+                    is_saleable: bool = False) -> RawMaterial:
+    name, unit = _clean(name), _clean(unit)
+    if not name or not unit:
+        raise ValueError("A material needs a name and a unit.")
+    if db.query(RawMaterial).filter(func.upper(RawMaterial.name) == name).first():
+        raise ValueError(f"'{name}' is already a material.")
+    last = db.query(func.max(RawMaterial.display_order)).scalar()
+    material = RawMaterial(
+        name=name, unit=unit,
+        default_rate=_positive_or_none(default_rate, "A rate"),
+        reorder_level=_positive_or_none(reorder_level, "A reorder level"),
+        is_lot_tracked=int(is_lot_tracked), is_saleable=int(is_saleable),
+        display_order=(last or 0) + 1)
+    db.add(material)
+    db.flush()
+    record(db, actor, "raw_material", material.id, "CREATE", new={
+        "name": name, "unit": unit, "default_rate": material.default_rate,
+        "reorder_level": material.reorder_level,
+        "is_lot_tracked": is_lot_tracked, "is_saleable": is_saleable})
+    db.commit()
+    return material
+
+
+def update_material(db: Session, actor: str, material_id: int, *, unit: str,
+                    default_rate: float | None, reorder_level: float | None,
+                    is_lot_tracked: bool, is_saleable: bool) -> RawMaterial:
+    """Everything but the name. Sheet12 and the cement opening find their
+    materials by name, and a delivery keeps the material it was entered
+    against, so a rename would quietly re-label history."""
+    material = db.get(RawMaterial, material_id)
+    if material is None:
+        raise ValueError(f"No such material: {material_id}")
+    unit = _clean(unit)
+    if not unit:
+        raise ValueError(f"{material.name} needs a unit.")
+    if bool(material.is_lot_tracked) != bool(is_lot_tracked) \
+            and has_history(db, material_id):
+        raise ValueError(
+            f"{material.name} already has deliveries or lots, so whether it is "
+            "kept in lots cannot change - its balances would stop adding up.")
+    old = {"unit": material.unit, "default_rate": material.default_rate,
+           "reorder_level": material.reorder_level,
+           "is_lot_tracked": bool(material.is_lot_tracked),
+           "is_saleable": bool(material.is_saleable)}
+    material.unit = unit
+    material.default_rate = _positive_or_none(default_rate, "A rate")
+    material.reorder_level = _positive_or_none(reorder_level, "A reorder level")
+    material.is_lot_tracked = int(is_lot_tracked)
+    material.is_saleable = int(is_saleable)
+    new = {"unit": material.unit, "default_rate": material.default_rate,
+           "reorder_level": material.reorder_level,
+           "is_lot_tracked": bool(is_lot_tracked),
+           "is_saleable": bool(is_saleable)}
+    if new != old:
+        record(db, actor, "raw_material", material.id, "UPDATE", old=old, new=new)
+    db.commit()
+    return material
+
+
+def create_supplier(db: Session, actor: str, *, name: str,
+                    contact: str | None = None) -> Supplier:
+    name = _clean(name)
+    if not name:
+        raise ValueError("A supplier needs a name.")
+    if db.query(Supplier).filter(func.upper(Supplier.name) == name).first():
+        raise ValueError(f"'{name}' is already a supplier.")
+    supplier = Supplier(name=name, contact=(contact or "").strip() or None)
+    db.add(supplier)
+    db.flush()
+    record(db, actor, "supplier", supplier.id, "CREATE",
+           new={"name": name, "contact": supplier.contact})
+    db.commit()
+    return supplier
+
+
+def update_supplier(db: Session, actor: str, supplier_id: int, *, name: str,
+                    contact: str | None) -> Supplier:
+    """A supplier can be renamed: deliveries point at it by id, so the old
+    ones follow the new name, which is what fixing a misspelling wants."""
+    supplier = db.get(Supplier, supplier_id)
+    if supplier is None:
+        raise ValueError(f"No such supplier: {supplier_id}")
+    name = _clean(name)
+    if not name:
+        raise ValueError("A supplier needs a name.")
+    clash = db.query(Supplier).filter(func.upper(Supplier.name) == name,
+                                      Supplier.id != supplier_id).first()
+    if clash:
+        raise ValueError(f"'{name}' is already a supplier.")
+    old = {"name": supplier.name, "contact": supplier.contact}
+    supplier.name = name
+    supplier.contact = (contact or "").strip() or None
+    new = {"name": supplier.name, "contact": supplier.contact}
+    if new != old:
+        record(db, actor, "supplier", supplier.id, "UPDATE", old=old, new=new)
+    db.commit()
+    return supplier
+
+
+def deliveries_count(db: Session) -> dict[str, dict[int, int]]:
+    """How many deliveries each material and each supplier has -- shown on
+    the master so nobody wonders whether a row is in use."""
+    by_material = dict(db.query(MaterialReceipt.material_id,
+                                func.count(MaterialReceipt.id)).group_by(
+        MaterialReceipt.material_id).all())
+    by_supplier = dict(db.query(MaterialReceipt.supplier_id,
+                                func.count(MaterialReceipt.id)).filter(
+        MaterialReceipt.supplier_id.is_not(None)).group_by(
+        MaterialReceipt.supplier_id).all())
+    return {"material": by_material, "supplier": by_supplier}
+
+
 def receipts_for_day(db: Session, day: dt.date) -> list[MaterialReceipt]:
     return db.query(MaterialReceipt).filter_by(receipt_date=day).order_by(
         MaterialReceipt.id).all()

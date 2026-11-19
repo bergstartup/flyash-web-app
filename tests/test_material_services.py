@@ -143,3 +143,63 @@ def test_materials_respect_the_period_lock(db, cement, two_lots):
         material_svc.consume(db, "OFFICE", cons_date=JULY,
                              material_id=cement.id,
                              allocations={two_lots[0].id: 1})
+
+
+# -- the master -------------------------------------------------------------
+
+def test_a_material_is_added_with_its_unit_and_rate(db):
+    mat = material_svc.create_material(db, "OFFICE", name=" fly  ash ",
+                                       unit="tonne", default_rate=850,
+                                       reorder_level=5)
+    assert (mat.name, mat.unit, mat.default_rate, mat.reorder_level) == \
+        ("FLY ASH", "TONNE", 850, 5)
+    with pytest.raises(ValueError, match="already a material"):
+        material_svc.create_material(db, "OFFICE", name="Fly Ash", unit="T")
+
+
+def test_a_blank_rate_or_reorder_level_means_none(db, cement):
+    material_svc.update_material(db, "OFFICE", cement.id, unit="BAGS",
+                                 default_rate=None, reorder_level=None,
+                                 is_lot_tracked=True, is_saleable=False)
+    assert cement.default_rate is None and cement.reorder_level is None
+
+
+def test_lot_keeping_is_fixed_once_a_material_has_history(db, cement):
+    material_svc.receive(db, "OFFICE", receipt_date=JULY, material_id=cement.id,
+                         qty=80, rate=350)
+    with pytest.raises(ValueError, match="cannot change"):
+        material_svc.update_material(db, "OFFICE", cement.id, unit="BAGS",
+                                     default_rate=None, reorder_level=None,
+                                     is_lot_tracked=False, is_saleable=False)
+    # ... while everything else still can
+    material_svc.update_material(db, "OFFICE", cement.id, unit="BAG",
+                                 default_rate=360, reorder_level=40,
+                                 is_lot_tracked=True, is_saleable=True)
+    assert (cement.unit, cement.default_rate) == ("BAG", 360)
+
+
+def test_lot_keeping_can_change_before_the_first_delivery(db):
+    mat = material_svc.create_material(db, "OFFICE", name="GRIT", unit="LOAD")
+    material_svc.update_material(db, "OFFICE", mat.id, unit="LOAD",
+                                 default_rate=None, reorder_level=None,
+                                 is_lot_tracked=True, is_saleable=False)
+    assert mat.is_lot_tracked == 1
+
+
+def test_the_reorder_level_set_here_raises_the_warning(db, cement, two_lots):
+    material_svc.update_material(db, "OFFICE", cement.id, unit="BAGS",
+                                 default_rate=None, reorder_level=500,
+                                 is_lot_tracked=True, is_saleable=False)
+    assert [r[0] for r in material_svc.below_reorder(db)] == ["CEMENT"]
+
+
+def test_a_supplier_can_be_added_and_renamed(db):
+    s = material_svc.create_supplier(db, "OFFICE", name="shri vari",
+                                     contact="98400 00000")
+    material_svc.update_supplier(db, "OFFICE", s.id,
+                                 name="SHRI VARI BLUE METAL", contact="")
+    assert (s.name, s.contact) == ("SHRI VARI BLUE METAL", None)
+    other = material_svc.create_supplier(db, "OFFICE", name="BULKER")
+    with pytest.raises(ValueError, match="already a supplier"):
+        material_svc.update_supplier(db, "OFFICE", other.id,
+                                     name="Shri Vari Blue Metal", contact=None)

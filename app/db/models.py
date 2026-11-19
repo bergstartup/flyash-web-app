@@ -13,6 +13,7 @@ Rules this schema enforces, drawn from the build plan:
 from __future__ import annotations
 
 import datetime as dt
+from typing import Optional
 
 from sqlalchemy import (
     CheckConstraint,
@@ -45,14 +46,14 @@ class Labour(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(80), unique=True)
-    phone: Mapped[str | None] = mapped_column(String(20))
+    phone: Mapped[Optional[str]] = mapped_column(String(20))
     # C: Aadhaar last four digits only -- see build plan section 12.
-    aadhar_last4: Mapped[str | None] = mapped_column(String(4))
+    aadhar_last4: Mapped[Optional[str]] = mapped_column(String(4))
     wage_type: Mapped[str] = mapped_column(String(8))
     # rupees per shift when DAILY, rupees per month when FIXED
     rate: Mapped[float] = mapped_column(Float)
-    join_date: Mapped[dt.date | None] = mapped_column(Date)
-    exit_date: Mapped[dt.date | None] = mapped_column(Date)
+    join_date: Mapped[Optional[dt.date]] = mapped_column(Date)
+    exit_date: Mapped[Optional[dt.date]] = mapped_column(Date)
     is_active: Mapped[int] = mapped_column(Integer, default=1)
     # Canonical order for the app's own entry screens -- distinct from
     # labour_sheet_order, which exists only to reproduce each *source* sheet's
@@ -80,7 +81,7 @@ class LabourSheetOrder(Base):
     labour_id: Mapped[int] = mapped_column(ForeignKey("labour.id"))
     position: Mapped[int] = mapped_column(Integer)
     # the spelling this sheet uses, e.g. "NEERAJ . P" vs "NEERAJ.P"
-    label: Mapped[str | None] = mapped_column(String(80))
+    label: Mapped[Optional[str]] = mapped_column(String(80))
 
     labour: Mapped[Labour] = relationship(back_populates="sheet_orders")
 
@@ -92,11 +93,11 @@ class Product(Base):
     code: Mapped[str] = mapped_column(String(30), unique=True)
     name: Mapped[str] = mapped_column(String(80), unique=True)
     unit: Mapped[str] = mapped_column(String(12), default="NOS")
-    default_rate: Mapped[float | None] = mapped_column(Float)
+    default_rate: Mapped[Optional[float]] = mapped_column(Float)
     # C10: fifteen products sell, three have stock ledgers.
     has_stock_ledger: Mapped[int] = mapped_column(Integer, default=0)
     # which sheet renders this product's ledger, when it has one
-    ledger_sheet: Mapped[str | None] = mapped_column(String(10))
+    ledger_sheet: Mapped[Optional[str]] = mapped_column(String(10))
     is_active: Mapped[int] = mapped_column(Integer, default=1)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -107,12 +108,12 @@ class RawMaterial(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(60), unique=True)
     unit: Mapped[str] = mapped_column(String(12))
-    default_rate: Mapped[float | None] = mapped_column(Float)
+    default_rate: Mapped[Optional[float]] = mapped_column(Float)
     is_lot_tracked: Mapped[int] = mapped_column(Integer, default=0)
     is_saleable: Mapped[int] = mapped_column(Integer, default=0)
-    reorder_level: Mapped[float | None] = mapped_column(Float)
+    reorder_level: Mapped[Optional[float]] = mapped_column(Float)
     # column letter in the wide Sheet10 layout
-    sheet10_column: Mapped[str | None] = mapped_column(String(2))
+    sheet10_column: Mapped[Optional[str]] = mapped_column(String(2))
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
 
@@ -121,11 +122,11 @@ class Customer(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(80))
-    village: Mapped[str | None] = mapped_column(String(80))
-    contact: Mapped[str | None] = mapped_column(String(40))
-    customer_type: Mapped[str | None] = mapped_column(String(40))
-    credit_limit: Mapped[float | None] = mapped_column(Float)
-    added_on: Mapped[dt.date | None] = mapped_column(Date)
+    village: Mapped[Optional[str]] = mapped_column(String(80))
+    contact: Mapped[Optional[str]] = mapped_column(String(40))
+    customer_type: Mapped[Optional[str]] = mapped_column(String(40))
+    credit_limit: Mapped[Optional[float]] = mapped_column(Float)
+    added_on: Mapped[Optional[dt.date]] = mapped_column(Date)
     is_active: Mapped[int] = mapped_column(Integer, default=1)
 
 
@@ -134,7 +135,7 @@ class Supplier(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(80), unique=True)
-    contact: Mapped[str | None] = mapped_column(String(40))
+    contact: Mapped[Optional[str]] = mapped_column(String(40))
 
 
 class Vehicle(Base):
@@ -142,8 +143,8 @@ class Vehicle(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(80), unique=True)
-    driver_name: Mapped[str | None] = mapped_column(String(60))
-    contact: Mapped[str | None] = mapped_column(String(40))
+    driver_name: Mapped[Optional[str]] = mapped_column(String(60))
+    contact: Mapped[Optional[str]] = mapped_column(String(40))
 
 
 class ExtraWorkType(Base):
@@ -159,7 +160,7 @@ class ExtraWorkType(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(String(30), unique=True)
     name: Mapped[str] = mapped_column(String(80))
-    unit: Mapped[str | None] = mapped_column(String(12))
+    unit: Mapped[Optional[str]] = mapped_column(String(12))
     is_adjustment: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[int] = mapped_column(Integer, default=1)
 
@@ -189,13 +190,13 @@ class PowerReading(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     reading_date: Mapped[dt.date] = mapped_column(Date, unique=True)
-    kwh: Mapped[float | None] = mapped_column(Float)
-    kvah: Mapped[float | None] = mapped_column(Float)
+    kwh: Mapped[Optional[float]] = mapped_column(Float)
+    kvah: Mapped[Optional[float]] = mapped_column(Float)
     # July has TWO anchor rows, both 16 Jun with identical readings.
     is_eb_anchor: Mapped[int] = mapped_column(Integer, default=0)
     # 29 Jul carries the text LEAVE / SIR instead of a reading.
     reading_taken: Mapped[int] = mapped_column(Integer, default=1)
-    remarks: Mapped[str | None] = mapped_column(Text)
+    remarks: Mapped[Optional[str]] = mapped_column(Text)
 
 
 # --------------------------------------------------------------------------
@@ -216,7 +217,7 @@ class Attendance(Base):
     att_date: Mapped[dt.date] = mapped_column(Date, index=True)
     labour_id: Mapped[int] = mapped_column(ForeignKey("labour.id"))
     shift_units: Mapped[float] = mapped_column(Float)
-    remarks: Mapped[str | None] = mapped_column(Text)
+    remarks: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class ExtraWork(Base):
@@ -228,7 +229,7 @@ class ExtraWork(Base):
     work_type_id: Mapped[int] = mapped_column(ForeignKey("extra_work_type.id"))
     qty: Mapped[float] = mapped_column(Float)
     rate: Mapped[float] = mapped_column(Float)  # snapshotted
-    remarks: Mapped[str | None] = mapped_column(Text)
+    remarks: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class Advance(Base):
@@ -243,10 +244,10 @@ class Advance(Base):
     adv_date: Mapped[dt.date] = mapped_column(Date, index=True)
     labour_id: Mapped[int] = mapped_column(ForeignKey("labour.id"))
     amount: Mapped[float] = mapped_column(Float)
-    payment_mode: Mapped[str | None] = mapped_column(String(10))
+    payment_mode: Mapped[Optional[str]] = mapped_column(String(10))
     # C13: Sheet19 shows advances paid into third-party accounts.
-    paid_to: Mapped[str | None] = mapped_column(String(80))
-    remarks: Mapped[str | None] = mapped_column(Text)
+    paid_to: Mapped[Optional[str]] = mapped_column(String(80))
+    remarks: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class SalarySettlement(Base):
@@ -259,12 +260,12 @@ class SalarySettlement(Base):
     period_year: Mapped[int] = mapped_column(Integer)
     period_month: Mapped[int] = mapped_column(Integer)
     labour_id: Mapped[int] = mapped_column(ForeignKey("labour.id"))
-    paid_on: Mapped[dt.date | None] = mapped_column(Date)
-    authority: Mapped[str | None] = mapped_column(String(40))
-    status: Mapped[str | None] = mapped_column(String(20))
+    paid_on: Mapped[Optional[dt.date]] = mapped_column(Date)
+    authority: Mapped[Optional[str]] = mapped_column(String(40))
+    status: Mapped[Optional[str]] = mapped_column(String(20))
     outstanding: Mapped[float] = mapped_column(Float, default=0.0)
     # C15: FIXED staff (M.DIRECTOR) have duty with no attendance column.
-    duty_override: Mapped[float | None] = mapped_column(Float)
+    duty_override: Mapped[Optional[float]] = mapped_column(Float)
 
 
 # --------------------------------------------------------------------------
@@ -324,8 +325,8 @@ class Production(Base):
     # the sale it was posted after, 0 before any of them. The running balance
     # depends on it -- bricks come off the press during the day, not after it.
     # NULL means "posted last", which is what a new entry defaults to.
-    after_seq: Mapped[int | None] = mapped_column(Integer)
-    remarks: Mapped[str | None] = mapped_column(Text)
+    after_seq: Mapped[Optional[int]] = mapped_column(Integer)
+    remarks: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class Sale(Base):
@@ -357,14 +358,14 @@ class Sale(Base):
     sale_date: Mapped[dt.date] = mapped_column(Date, index=True)
     seq_no: Mapped[int] = mapped_column(Integer)
     movement_type: Mapped[str] = mapped_column(String(10), default="SALE")
-    vehicle_id: Mapped[int | None] = mapped_column(ForeignKey("vehicle.id"))
+    vehicle_id: Mapped[Optional[int]] = mapped_column(ForeignKey("vehicle.id"))
     # C11: what the operator writes today -- a village, a person, a landmark.
-    destination: Mapped[str | None] = mapped_column(String(80))
+    destination: Mapped[Optional[str]] = mapped_column(String(80))
     # C11: optional, and required only for CREDIT sales.
-    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customer.id"))
-    payment_mode: Mapped[str | None] = mapped_column(String(10))
-    collected_by: Mapped[str | None] = mapped_column(String(60))
-    remarks: Mapped[str | None] = mapped_column(Text)
+    customer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("customer.id"))
+    payment_mode: Mapped[Optional[str]] = mapped_column(String(10))
+    collected_by: Mapped[Optional[str]] = mapped_column(String(60))
+    remarks: Mapped[Optional[str]] = mapped_column(Text)
 
     lines: Mapped[list["SaleLine"]] = relationship(
         back_populates="sale", cascade="all, delete-orphan"
@@ -380,7 +381,7 @@ class SaleLine(Base):
     line_no: Mapped[int] = mapped_column(Integer, default=1)
     product_id: Mapped[int] = mapped_column(ForeignKey("product.id"))
     qty: Mapped[float] = mapped_column(Float)
-    rate: Mapped[float | None] = mapped_column(Float)
+    rate: Mapped[Optional[float]] = mapped_column(Float)
     # C8: entered, not generated. Five July rows have amount != qty * rate.
     amount: Mapped[float] = mapped_column(Float)
     amount_overridden: Mapped[int] = mapped_column(Integer, default=0)
@@ -394,18 +395,18 @@ class Delivery(Base):
     __tablename__ = "delivery"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    sale_id: Mapped[int | None] = mapped_column(ForeignKey("sale.id"))
+    sale_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sale.id"))
     delivery_date: Mapped[dt.date] = mapped_column(Date, index=True)
-    seq_no: Mapped[int | None] = mapped_column(Integer)
-    name: Mapped[str | None] = mapped_column(String(80))
-    particulars: Mapped[str | None] = mapped_column(String(80))
-    identification: Mapped[str | None] = mapped_column(String(80))
-    details: Mapped[str | None] = mapped_column(String(80))
-    unload_location: Mapped[str | None] = mapped_column(String(80))
-    contact: Mapped[str | None] = mapped_column(String(40))
-    follow_up: Mapped[str | None] = mapped_column(String(20))
-    page_no: Mapped[str | None] = mapped_column(String(20))
-    driver_name: Mapped[str | None] = mapped_column(String(60))
+    seq_no: Mapped[Optional[int]] = mapped_column(Integer)
+    name: Mapped[Optional[str]] = mapped_column(String(80))
+    particulars: Mapped[Optional[str]] = mapped_column(String(80))
+    identification: Mapped[Optional[str]] = mapped_column(String(80))
+    details: Mapped[Optional[str]] = mapped_column(String(80))
+    unload_location: Mapped[Optional[str]] = mapped_column(String(80))
+    contact: Mapped[Optional[str]] = mapped_column(String(40))
+    follow_up: Mapped[Optional[str]] = mapped_column(String(20))
+    page_no: Mapped[Optional[str]] = mapped_column(String(20))
+    driver_name: Mapped[Optional[str]] = mapped_column(String(60))
 
 
 # --------------------------------------------------------------------------
@@ -427,16 +428,16 @@ class MaterialReceipt(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     receipt_date: Mapped[dt.date] = mapped_column(Date, index=True)
-    supplier_id: Mapped[int | None] = mapped_column(ForeignKey("supplier.id"))
-    bill_no: Mapped[str | None] = mapped_column(String(40))
-    vehicle_no: Mapped[str | None] = mapped_column(String(40))
+    supplier_id: Mapped[Optional[int]] = mapped_column(ForeignKey("supplier.id"))
+    bill_no: Mapped[Optional[str]] = mapped_column(String(40))
+    vehicle_no: Mapped[Optional[str]] = mapped_column(String(40))
     material_id: Mapped[int] = mapped_column(ForeignKey("raw_material.id"))
     qty: Mapped[float] = mapped_column(Float)
     rate: Mapped[float] = mapped_column(Float)
     amount: Mapped[float] = mapped_column(Float)
     amount_overridden: Mapped[int] = mapped_column(Integer, default=0)
-    driver_name: Mapped[str | None] = mapped_column(String(60))
-    payment_status: Mapped[str | None] = mapped_column(String(20), default="PENDING")
+    driver_name: Mapped[Optional[str]] = mapped_column(String(60))
+    payment_status: Mapped[Optional[str]] = mapped_column(String(20), default="PENDING")
 
 
 class MaterialLot(Base):
@@ -449,9 +450,9 @@ class MaterialLot(Base):
     __tablename__ = "material_lot"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    receipt_id: Mapped[int | None] = mapped_column(ForeignKey("material_receipt.id"))
+    receipt_id: Mapped[Optional[int]] = mapped_column(ForeignKey("material_receipt.id"))
     material_id: Mapped[int] = mapped_column(ForeignKey("raw_material.id"))
-    lot_date: Mapped[dt.date | None] = mapped_column(Date)
+    lot_date: Mapped[Optional[dt.date]] = mapped_column(Date)
     # Sheet12 labels two buckets "M / N" and "CON" rather than by date.
     label: Mapped[str] = mapped_column(String(20))
     display_order: Mapped[int] = mapped_column(Integer, default=0)
@@ -475,7 +476,7 @@ class MaterialLotInflow(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     lot_id: Mapped[int] = mapped_column(ForeignKey("material_lot.id"))
-    receipt_id: Mapped[int | None] = mapped_column(ForeignKey("material_receipt.id"))
+    receipt_id: Mapped[Optional[int]] = mapped_column(ForeignKey("material_receipt.id"))
     as_on: Mapped[dt.date] = mapped_column(Date, index=True)
     qty: Mapped[float] = mapped_column(Float)
 
@@ -489,7 +490,7 @@ class MaterialConsumption(Base):
     cons_date: Mapped[dt.date] = mapped_column(Date, index=True)
     material_id: Mapped[int] = mapped_column(ForeignKey("raw_material.id"))
     qty: Mapped[float] = mapped_column(Float)
-    remarks: Mapped[str | None] = mapped_column(Text)
+    remarks: Mapped[Optional[str]] = mapped_column(Text)
 
     allocations: Mapped[list["ConsumptionAllocation"]] = relationship(
         back_populates="consumption", cascade="all, delete-orphan"
@@ -520,13 +521,13 @@ class ConsumptionAllocation(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     lot_id: Mapped[int] = mapped_column(ForeignKey("material_lot.id"))
-    consumption_id: Mapped[int | None] = mapped_column(
+    consumption_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("material_consumption.id")
     )
-    sale_line_id: Mapped[int | None] = mapped_column(ForeignKey("sale_line.id"))
+    sale_line_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sale_line.id"))
     qty: Mapped[float] = mapped_column(Float)
 
-    consumption: Mapped[MaterialConsumption | None] = relationship(
+    consumption: Mapped[Optional[MaterialConsumption]] = relationship(
         back_populates="allocations"
     )
 
@@ -543,7 +544,7 @@ class ReceivableOpening(Base):
     customer_id: Mapped[int] = mapped_column(ForeignKey("customer.id"))
     as_on: Mapped[dt.date] = mapped_column(Date)
     amount: Mapped[float] = mapped_column(Float)
-    note: Mapped[str | None] = mapped_column(Text)
+    note: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class Receipt(Base):
@@ -554,12 +555,12 @@ class Receipt(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     receipt_date: Mapped[dt.date] = mapped_column(Date, index=True)
-    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customer.id"))
-    sale_id: Mapped[int | None] = mapped_column(ForeignKey("sale.id"))
+    customer_id: Mapped[Optional[int]] = mapped_column(ForeignKey("customer.id"))
+    sale_id: Mapped[Optional[int]] = mapped_column(ForeignKey("sale.id"))
     amount: Mapped[float] = mapped_column(Float)
-    payment_mode: Mapped[str | None] = mapped_column(String(10))
-    collected_by: Mapped[str | None] = mapped_column(String(60))
-    remarks: Mapped[str | None] = mapped_column(Text)
+    payment_mode: Mapped[Optional[str]] = mapped_column(String(10))
+    collected_by: Mapped[Optional[str]] = mapped_column(String(60))
+    remarks: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class DigitalLedger(Base):
@@ -576,10 +577,10 @@ class DigitalLedger(Base):
     direction: Mapped[str] = mapped_column(String(4))
     # C14: the Rs 14,273 "JUNE BALANCE" row is an OPENING entry, not income.
     entry_type: Mapped[str] = mapped_column(String(10), default="MANUAL")
-    description: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[Optional[str]] = mapped_column(Text)
     amount: Mapped[float] = mapped_column(Float)
-    source_table: Mapped[str | None] = mapped_column(String(40))
-    source_id: Mapped[int | None] = mapped_column(Integer)
+    source_table: Mapped[Optional[str]] = mapped_column(String(40))
+    source_id: Mapped[Optional[int]] = mapped_column(Integer)
 
 
 # --------------------------------------------------------------------------
@@ -591,16 +592,16 @@ class PalletMovement(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     move_date: Mapped[dt.date] = mapped_column(Date, unique=True)
-    stocking_area: Mapped[float | None] = mapped_column(Float)
-    production_area: Mapped[float | None] = mapped_column(Float)
-    today_prodn: Mapped[float | None] = mapped_column(Float)
-    pallets_stocked: Mapped[float | None] = mapped_column(Float)
-    shifted_from_stocking: Mapped[float | None] = mapped_column(Float)
+    stocking_area: Mapped[Optional[float]] = mapped_column(Float)
+    production_area: Mapped[Optional[float]] = mapped_column(Float)
+    today_prodn: Mapped[Optional[float]] = mapped_column(Float)
+    pallets_stocked: Mapped[Optional[float]] = mapped_column(Float)
+    shifted_from_stocking: Mapped[Optional[float]] = mapped_column(Float)
     # What is standing in each area at the end of the day. Not derivable from
     # the columns above -- 28 July counts 4 in production and 3 in stocking
     # against 4 made -- so the register counts them and so does the app.
-    production_balance: Mapped[float | None] = mapped_column(Float)
-    stocking_balance: Mapped[float | None] = mapped_column(Float)
+    production_balance: Mapped[Optional[float]] = mapped_column(Float)
+    stocking_balance: Mapped[Optional[float]] = mapped_column(Float)
 
 
 class BikeMileage(Base):
@@ -608,8 +609,8 @@ class BikeMileage(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     log_date: Mapped[dt.date] = mapped_column(Date, unique=True)
-    start_km: Mapped[float | None] = mapped_column(Float)
-    stop_km: Mapped[float | None] = mapped_column(Float)
+    start_km: Mapped[Optional[float]] = mapped_column(Float)
+    stop_km: Mapped[Optional[float]] = mapped_column(Float)
 
 
 # --------------------------------------------------------------------------
@@ -625,11 +626,11 @@ class PeriodLock(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     period_year: Mapped[int] = mapped_column(Integer)
     period_month: Mapped[int] = mapped_column(Integer)
-    locked_at: Mapped[dt.datetime | None] = mapped_column(DateTime)
-    locked_by: Mapped[str | None] = mapped_column(String(60))
-    reopened_at: Mapped[dt.datetime | None] = mapped_column(DateTime)
-    reopened_by: Mapped[str | None] = mapped_column(String(60))
-    reopen_reason: Mapped[str | None] = mapped_column(Text)
+    locked_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime)
+    locked_by: Mapped[Optional[str]] = mapped_column(String(60))
+    reopened_at: Mapped[Optional[dt.datetime]] = mapped_column(DateTime)
+    reopened_by: Mapped[Optional[str]] = mapped_column(String(60))
+    reopen_reason: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class AuditLog(Base):
@@ -637,12 +638,12 @@ class AuditLog(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     table_name: Mapped[str] = mapped_column(String(40))
-    record_id: Mapped[int | None] = mapped_column(Integer)
+    record_id: Mapped[Optional[int]] = mapped_column(Integer)
     action: Mapped[str] = mapped_column(String(10))
-    old_value: Mapped[str | None] = mapped_column(Text)
-    new_value: Mapped[str | None] = mapped_column(Text)
+    old_value: Mapped[Optional[str]] = mapped_column(Text)
+    new_value: Mapped[Optional[str]] = mapped_column(Text)
     # fed by the actor seam -- a name, no password. See app/web/actor.py
-    changed_by: Mapped[str | None] = mapped_column(String(60))
+    changed_by: Mapped[Optional[str]] = mapped_column(String(60))
     changed_at: Mapped[dt.datetime] = mapped_column(
         DateTime, server_default=func.current_timestamp()
     )
@@ -655,12 +656,12 @@ class ImportAnomaly(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(String(20))
-    sheet: Mapped[str | None] = mapped_column(String(20))
-    cell: Mapped[str | None] = mapped_column(String(20))
+    sheet: Mapped[Optional[str]] = mapped_column(String(20))
+    cell: Mapped[Optional[str]] = mapped_column(String(20))
     severity: Mapped[str] = mapped_column(String(10), default="ERROR")
     summary: Mapped[str] = mapped_column(Text)
-    workbook_value: Mapped[str | None] = mapped_column(String(80))
-    derived_value: Mapped[str | None] = mapped_column(String(80))
-    difference: Mapped[str | None] = mapped_column(String(80))
+    workbook_value: Mapped[Optional[str]] = mapped_column(String(80))
+    derived_value: Mapped[Optional[str]] = mapped_column(String(80))
+    difference: Mapped[Optional[str]] = mapped_column(String(80))
     resolved: Mapped[int] = mapped_column(Integer, default=0)
-    resolution_note: Mapped[str | None] = mapped_column(Text)
+    resolution_note: Mapped[Optional[str]] = mapped_column(Text)

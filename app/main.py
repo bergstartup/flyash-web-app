@@ -7,21 +7,26 @@ machine.
 
 from __future__ import annotations
 
+import calendar
+import tempfile
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
 from app.db.models import ImportAnomaly
 from app.db.session import engine
+from app.excel.workbook import build_month
 from app.reports import daily as daily_svc
 from app.reports.period import latest_period
 from app.reports.reconciliation import measure
 from app.web.actor import set_actor
 from app.web.render import db_session, page, parse_date
 from app.web.routers.labour import router as labour_router
+from app.web.routers.month_import import router as month_import_router
+from app.web.routers.opening import router as opening_router
 from app.web.routers.plant import router as plant_router
 from app.web.routers.stock import router as stock_router
 
@@ -32,6 +37,8 @@ app.mount("/static", StaticFiles(directory=WEB / "static"), name="static")
 app.include_router(labour_router)
 app.include_router(stock_router)
 app.include_router(plant_router)
+app.include_router(opening_router)
+app.include_router(month_import_router)
 
 
 @app.post("/actor")
@@ -92,6 +99,27 @@ def daily_round(request: Request, date: str = "", db=Depends(db_session)):
     the_round = daily_svc.round_for(db, day)
     return page(request, "daily.html", page="daily", day=day,
                round=the_round)
+
+
+@app.get("/export")
+def export_workbook(month: str = "", db=Depends(db_session)):
+    """The month's register as a workbook, straight to the browser.
+
+    Built fresh on every click from the database, so a copy downloaded
+    mid-month is simply that day's picture -- nothing is kept on the server.
+    """
+    if month:
+        year, mon = int(month[:4]), int(month[5:7])
+    else:
+        year, mon = latest_period(db)
+    name = f"{calendar.month_name[mon].upper()}-{year}.xlsx"
+    with tempfile.TemporaryDirectory() as tmp, engine.connect() as conn:
+        out = Path(tmp) / name
+        build_month(conn, year, mon, out)
+        body = out.read_bytes()
+    return Response(body, media_type=(
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
 
 @app.get("/reconciliation")
