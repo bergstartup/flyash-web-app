@@ -25,6 +25,11 @@ is ever an input field. There is no `opening`, `balance`, `total` or
 
 ## Running
 
+The plant's own files -- `JULY.xlsx`, `OCTOBER.xlsx`, `FlyAshApp.pdf` -- hold
+customer and staff names and phone numbers, so they are kept out of git. Copy
+them into the project folder by hand on each machine; the import script and
+most tests read `JULY.xlsx` from there.
+
 ```bash
 python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
 ./.venv/bin/alembic upgrade head        # schema + views

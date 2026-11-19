@@ -9,3 +9,11 @@ data/backups/
 data/backup.log
 .pytest_cache/
 *.egg-info/
+
+# The plant's registers and requirement note: customer and staff names and
+# phone numbers. Kept on each machine, never in git.
+/JULY.xlsx
+/OCTOBER.xlsx
+/*.xlsx
+/FlyAshApp.pdf
+data/*.db.*

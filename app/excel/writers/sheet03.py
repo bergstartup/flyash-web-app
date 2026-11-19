@@ -26,6 +26,15 @@ class Sheet03Writer(SheetWriter):
             SELECT o.labour_id, COALESCE(o.label, l.name), l.rate, l.join_date
             FROM labour_sheet_order o JOIN labour l ON l.id = o.labour_id
             WHERE o.sheet = 'Sheet3' ORDER BY o.position""")
+        # Row 3 carries each hand's mobile number. It comes from the labour
+        # record, not the template, so the template holds no one's number.
+        phones = dict(self.ctx.rows("""
+            SELECT o.position, l.phone FROM labour_sheet_order o
+            JOIN labour l ON l.id = o.labour_id WHERE o.sheet = 'Sheet3'"""))
+        for i, pos in enumerate(sorted(phones)):
+            phone = phones[pos]
+            self.ws.cell(3, 2 + 2 * i).value = (
+                int(phone) if phone and phone.isdigit() else phone)
         days = [_as_date(r[0]) for r in self.ctx.rows("""
             SELECT DISTINCT att_date FROM attendance
             WHERE strftime('%Y', att_date) = :y AND strftime('%m', att_date) = :m
