@@ -9,13 +9,17 @@ from __future__ import annotations
 
 import calendar
 import tempfile
+from contextlib import asynccontextmanager
 from pathlib import Path
 
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
 from fastapi import Depends, FastAPI, Form, Request
 from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 
+from app.config import BASE_DIR
 from app.db.models import ImportAnomaly
 from app.db.session import engine
 from app.excel.workbook import build_month
@@ -32,7 +36,24 @@ from app.web.routers.stock import router as stock_router
 
 WEB = Path(__file__).parent / "web"
 
-app = FastAPI(title="SMCP Kallakudi")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Bring the database to the current schema before serving.
+
+    A fresh checkout has no database (``data/*.db`` is not in git), and a
+    machine updated with ``git pull`` may be behind on migrations. Either way
+    the first request used to fail with "no such table"; upgrading here makes
+    ``alembic upgrade head`` a step nobody can forget. It is a no-op when the
+    database is already current.
+    """
+    cfg = AlembicConfig(str(BASE_DIR / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BASE_DIR / "app/db/migrations"))
+    alembic_command.upgrade(cfg, "head")
+    yield
+
+
+app = FastAPI(title="SMCP Kallakudi", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=WEB / "static"), name="static")
 app.include_router(labour_router)
 app.include_router(stock_router)

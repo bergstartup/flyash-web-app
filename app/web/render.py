@@ -6,6 +6,7 @@ Each router used to carry its own copy of all four. They are the same four.
 from __future__ import annotations
 
 import datetime as dt
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import Request
@@ -17,7 +18,8 @@ from app.db.session import SessionLocal
 from app.web import nav
 from app.web.actor import current_actor
 
-templates = Jinja2Templates(directory="app/web/templates")
+# Absolute, so the server can be started from any directory.
+templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
 
 def db_session():
