@@ -37,6 +37,16 @@ python3 -m venv .venv && ./.venv/bin/pip install -r requirements.txt
 ./scripts/run.sh                        # serve on 0.0.0.0:8000
 ```
 
+### A desktop icon on Windows (WSL)
+
+In Windows Explorer, open the project inside WSL
+(`\\wsl.localhost\<distro>\home\<you>\webapp\scripts\windows`) and
+double-click `install-desktop-icon.bat`. It puts an **SMCP Kallakudi** icon on
+the desktop. The icon starts the app in a console window and opens
+`http://localhost:8000/` once it answers. Closing that window stops the app.
+If the app is already running, the icon just opens the browser. Run the
+installer again if the project folder moves.
+
 ## Month to month, and going live
 
 Every register carries its own closing into the next month: stock

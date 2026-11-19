@@ -1,0 +1,20 @@
+@echo off
+rem Start the SMCP Kallakudi register in WSL and open it in the browser.
+rem Written by install-desktop-icon.ps1 -- rerun that instead of editing here.
+title SMCP Kallakudi - close this window to stop the app
+set URL=http://localhost:8000/
+
+rem Already running? Just open it.
+curl.exe -s -o NUL %URL% && (start "" %URL% & exit /b)
+
+rem Open the browser as soon as the app answers (up to a minute).
+start "" /b powershell -NoProfile -WindowStyle Hidden -Command "for ($i = 0; $i -lt 60; $i++) { try { Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 '%URL%' | Out-Null; Start-Process '%URL%'; break } catch { Start-Sleep 1 } }"
+
+echo Starting the SMCP Kallakudi register...
+echo Keep this window open while you use the app. Close it to stop the app.
+echo.
+wsl.exe -d "@DISTRO@" -e bash -lc "cd '@APP_DIR@' && exec bash scripts/run.sh"
+
+echo.
+echo The app has stopped. Press any key to close this window.
+pause >nul
