@@ -14,8 +14,37 @@ if ($here -notmatch '^\\\\wsl(?:\.localhost|\$)\\([^\\]+)\\(.+)\\scripts\\window
            "(\\wsl.localhost\<distro>\...\webapp\scripts\windows), " +
            "not from a copy on Windows. This copy is in: $here")
 }
-$distro = $Matches[1]
+$fromPath = $Matches[1]
 $appDir = '/' + ($Matches[2] -replace '\\', '/')
+
+# The name in the \\wsl.localhost path is not always the name `wsl -d`
+# accepts (WSL_E_DISTRO_NOT_FOUND), so take the name from WSL's own list:
+# the one the path names if it is there, else the one holding the project.
+# `wsl -l` writes UTF-16 unless WSL_UTF8 is set; strip the NULs either way.
+$env:WSL_UTF8 = '1'
+$distros = @(wsl.exe --list --quiet | ForEach-Object { ($_ -replace "`0", '').Trim() } |
+             Where-Object { $_ })
+if (-not $distros) { throw "WSL lists no installed distributions (wsl --list)." }
+
+function Test-Project([string]$name) {
+    # Windows PowerShell turns a native command's stderr into an error, which
+    # 'Stop' would throw; here a failure is an answer, not an error.
+    $ErrorActionPreference = 'Continue'
+    $null = wsl.exe -d $name -e test -f "$appDir/scripts/run.sh" 2>&1
+    return ($LASTEXITCODE -eq 0)
+}
+
+$distro = $distros | Where-Object { $_ -ieq $fromPath } | Select-Object -First 1
+if (-not $distro) {
+    $distro = $distros | Where-Object { Test-Project $_ } | Select-Object -First 1
+}
+if (-not $distro) {
+    throw ("None of the WSL distributions (" + ($distros -join ', ') +
+           ") has the project at $appDir.")
+}
+if (-not (Test-Project $distro)) {
+    throw "WSL distribution '$distro' has no $appDir/scripts/run.sh."
+}
 
 # Keep the launcher and icon on Windows, so the desktop icon shows even when
 # WSL is not running yet.
@@ -41,4 +70,7 @@ $lnk.Save()
 
 Write-Host ""
 Write-Host "Desktop icon created: $shortcut"
-Write-Host "It starts $appDir in WSL ($distro) and opens http://localhost:8000/"
+Write-Host "It starts $appDir in WSL distribution '$distro' and opens http://localhost:8000/"
+if ($distro -ne $fromPath) {
+    Write-Host "(The folder path said '$fromPath'; WSL knows it as '$distro'.)"
+}
